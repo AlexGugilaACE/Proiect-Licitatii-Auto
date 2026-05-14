@@ -1,0 +1,169 @@
+@model AutoAuction.Web.Models.AuctionIndexViewModel
+@using AutoAuction.Domain.Enums
+
+@{
+    ViewData["Title"] = "Licitații auto";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3">Licitații auto</h1>
+    @if (User.IsInRole("Vanzator"))
+    {
+        <a class="btn btn-primary" asp-action="Create">Adaugă licitație</a>
+    }
+</div>
+
+<form method="get" class="border rounded p-3 mb-4">
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label asp-for="Query" class="form-label">Caută</label>
+            <input asp-for="Query" class="form-control" placeholder="titlu sau descriere" />
+        </div>
+        <div class="col-md-4">
+            <label asp-for="BrandId" class="form-label">Marcă</label>
+            <select asp-for="BrandId" asp-items="Model.Brands" class="form-select"></select>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="CarModelId" class="form-label">Model</label>
+            <select asp-for="CarModelId" asp-items="Model.Models" class="form-select"></select>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="SortBy" class="form-label">Sortare</label>
+            <select asp-for="SortBy" asp-items="Model.SortOptions" class="form-select"></select>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="FuelTypeId" class="form-label">Combustibil</label>
+            <select asp-for="FuelTypeId" asp-items="Model.FuelTypes" class="form-select"></select>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="TransmissionTypeId" class="form-label">Cutie</label>
+            <select asp-for="TransmissionTypeId" asp-items="Model.TransmissionTypes" class="form-select"></select>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="BodyTypeId" class="form-label">Caroserie</label>
+            <select asp-for="BodyTypeId" asp-items="Model.BodyTypes" class="form-select"></select>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="ConditionId" class="form-label">Stare</label>
+            <select asp-for="ConditionId" asp-items="Model.Conditions" class="form-select"></select>
+        </div>
+        <div class="col-md-2">
+            <label asp-for="MinYear" class="form-label">An min.</label>
+            <input asp-for="MinYear" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <label asp-for="MaxYear" class="form-label">An max.</label>
+            <input asp-for="MaxYear" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <label asp-for="MinPrice" class="form-label">Preț min.</label>
+            <input asp-for="MinPrice" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <label asp-for="MaxPrice" class="form-label">Preț max.</label>
+            <input asp-for="MaxPrice" class="form-control" />
+        </div>
+        <div class="col-md-4 d-flex align-items-end gap-2">
+            <input type="hidden" name="Page" value="1" />
+            <button class="btn btn-primary" type="submit">Filtrează</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Resetează</a>
+        </div>
+    </div>
+</form>
+
+@if (Model.Auctions.Count == 0)
+{
+    <div class="alert alert-info">Nu există licitații pentru filtrele selectate.</div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="text-muted">@Model.TotalCount rezultate</div>
+        <div class="text-muted">Pagina @Model.Page din @Model.TotalPages</div>
+    </div>
+    <div class="row g-3">
+        @foreach (var auction in Model.Auctions)
+        {
+            <div class="col-md-6 col-xl-4">
+                <div class="card h-100">
+                    @if (auction.Images.Count > 0)
+                    {
+                        <img src="@auction.Images.OrderBy(x => x.SortOrder).First().FilePath" class="card-img-top" alt="@auction.Title" style="height: 190px; object-fit: cover;" />
+                    }
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-2">
+                            <h2 class="h5">@auction.Title</h2>
+                            <span class="badge text-bg-@(auction.Status == AuctionStatus.Active ? "success" : "secondary")">@auction.Status</span>
+                        </div>
+                        <p class="text-muted mb-2">@auction.Brand?.Name @auction.CarModel?.Name, @auction.Year, @auction.Mileage km</p>
+                        <p class="mb-2">@auction.FuelType?.Name / @auction.TransmissionType?.Name / @auction.BodyType?.Name</p>
+                        <p class="fs-5 fw-semibold mb-2">@auction.CurrentPrice.ToString("N2") EUR</p>
+                        <p class="small text-muted mb-3">Se încheie: @auction.EndTime.ToLocalTime().ToString("g")</p>
+                        <a class="btn btn-outline-primary" asp-action="Details" asp-route-id="@auction.Id">Detalii</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="mt-4" aria-label="Paginare licitații">
+            <ul class="pagination">
+                @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
+                {
+                    <li class="page-item @(pageNumber == Model.Page ? "active" : "")">
+                        <a class="page-link"
+                           asp-action="Index"
+                           asp-route-Query="@Model.Query"
+                           asp-route-BrandId="@Model.BrandId"
+                           asp-route-CarModelId="@Model.CarModelId"
+                           asp-route-FuelTypeId="@Model.FuelTypeId"
+                           asp-route-TransmissionTypeId="@Model.TransmissionTypeId"
+                           asp-route-BodyTypeId="@Model.BodyTypeId"
+                           asp-route-ConditionId="@Model.ConditionId"
+                           asp-route-MinYear="@Model.MinYear"
+                           asp-route-MaxYear="@Model.MaxYear"
+                           asp-route-MinPrice="@Model.MinPrice"
+                           asp-route-MaxPrice="@Model.MaxPrice"
+                           asp-route-SortBy="@Model.SortBy"
+                           asp-route-Page="@pageNumber">@pageNumber</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+}
+
+@section Scripts {
+    <script>
+        const brandSelect = document.getElementById("BrandId");
+        const modelSelect = document.getElementById("CarModelId");
+
+        async function loadModelsForBrand() {
+            const brandId = brandSelect.value;
+            modelSelect.innerHTML = "";
+
+            const emptyOption = document.createElement("option");
+            emptyOption.value = "";
+            emptyOption.textContent = "Toate modelele";
+            modelSelect.appendChild(emptyOption);
+
+            if (!brandId) {
+                return;
+            }
+
+            const response = await fetch(`/Auctions/ModelsByBrand?brandId=${brandId}`);
+            const models = await response.json();
+
+            for (const model of models) {
+                const option = document.createElement("option");
+                option.value = model.id;
+                option.textContent = model.name;
+                modelSelect.appendChild(option);
+            }
+        }
+
+        brandSelect.addEventListener("change", loadModelsForBrand);
+    </script>
+}

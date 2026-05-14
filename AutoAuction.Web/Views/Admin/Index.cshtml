@@ -1,0 +1,43 @@
+@model AutoAuction.Web.Models.AdminDashboardViewModel
+
+@{
+    ViewData["Title"] = "Admin";
+}
+
+<h1 class="h3 mb-3">Admin Panel</h1>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Utilizatori</div><div class="fs-4">@Model.UserCount</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Licitații</div><div class="fs-4">@Model.AuctionCount</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Active</div><div class="fs-4">@Model.ActiveAuctionCount</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Total tranzacții</div><div class="fs-4">@Model.TransactionTotal.ToString("N2") EUR</div></div></div></div>
+</div>
+
+<div class="d-flex gap-2 mb-4">
+    <a class="btn btn-outline-primary" asp-action="Users">Utilizatori</a>
+    <a class="btn btn-outline-primary" asp-action="Auctions">Licitații</a>
+    <a class="btn btn-outline-primary" asp-action="ReferenceData">Dropdown-uri</a>
+</div>
+
+<h2 class="h5">Licitații recente</h2>
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Titlu</th>
+            <th>Status</th>
+            <th>Preț</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var auction in Model.RecentAuctions)
+        {
+            <tr>
+                <td>@auction.Title</td>
+                <td>@auction.Status</td>
+                <td>@auction.CurrentPrice.ToString("N2") EUR</td>
+                <td><a asp-controller="Auctions" asp-action="Details" asp-route-id="@auction.Id">Detalii</a></td>
+            </tr>
+        }
+    </tbody>
+</table>

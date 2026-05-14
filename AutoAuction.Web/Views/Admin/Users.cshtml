@@ -1,0 +1,44 @@
+@model AutoAuction.Web.Models.AdminUsersViewModel
+
+@{
+    ViewData["Title"] = "Utilizatori";
+}
+
+<h1 class="h3 mb-3">Utilizatori</h1>
+
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Email</th>
+            <th>Nume</th>
+            <th>Roluri</th>
+            <th>Status</th>
+            <th>Creat</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var user in Model.Users)
+        {
+            <tr>
+                <td>@user.Email</td>
+                <td>@user.FullName</td>
+                <td>@user.Roles</td>
+                <td>@(user.IsDisabled ? "Dezactivat" : "Activ")</td>
+                <td>@user.CreatedAt.ToLocalTime().ToString("g")</td>
+                <td>
+                    <div class="d-flex gap-2">
+                        <form asp-action="ChangeUserRole" method="post" class="d-flex gap-2">
+                            <input type="hidden" name="UserId" value="@user.Id" />
+                            <select name="Role" asp-items="Model.RoleItems" class="form-select form-select-sm"></select>
+                            <button class="btn btn-sm btn-outline-primary" type="submit">Schimbă</button>
+                        </form>
+                        <form asp-action="ToggleUserDisabled" asp-route-id="@user.Id" method="post">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit">@(user.IsDisabled ? "Activează" : "Dezactivează")</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

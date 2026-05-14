@@ -1,0 +1,63 @@
+@model AutoAuction.Domain.Entities.Auction
+
+@{
+    ViewData["Title"] = "Bid-uri licitație";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-1">Bid-uri pentru @Model.Title</h1>
+        <div class="text-muted">@Model.Brand?.Name @Model.CarModel?.Name, @Model.Year</div>
+    </div>
+    <a class="btn btn-outline-primary" asp-action="Details" asp-route-id="@Model.Id">Detalii licitație</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="text-muted">Preț curent</div>
+                <div class="fs-5 fw-semibold">@Model.CurrentPrice.ToString("N2") EUR</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted">Pas minim bid</div>
+                <div class="fs-5">@Model.MinimumBidIncrement.ToString("N2") EUR</div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-muted">Status</div>
+                <div class="fs-5">@Model.Status</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.Bids.Count == 0)
+{
+    <div class="alert alert-info">Nu există bid-uri pentru această licitație.</div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Sumă</th>
+                <th>Data</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                var index = 1;
+            }
+            @foreach (var bid in Model.Bids.OrderByDescending(x => x.Amount))
+            {
+                <tr>
+                    <td>@index</td>
+                    <td>@bid.Amount.ToString("N2") EUR</td>
+                    <td>@bid.CreatedAt.ToLocalTime().ToString("g")</td>
+                </tr>
+                index++;
+            }
+        </tbody>
+    </table>
+}

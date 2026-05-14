@@ -1,0 +1,39 @@
+@model AutoAuction.Web.Models.RegisterViewModel
+
+@{
+    ViewData["Title"] = "Înregistrare";
+}
+
+<h1 class="h3 mb-3">Înregistrare</h1>
+
+<form asp-action="Register" method="post" class="col-md-6">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="FirstName" class="form-label">Prenume</label>
+        <input asp-for="FirstName" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="LastName" class="form-label">Nume</label>
+        <input asp-for="LastName" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label">Email</label>
+        <input asp-for="Email" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label">Parolă</label>
+        <input asp-for="Password" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Role" class="form-label">Rol</label>
+        <select asp-for="Role" class="form-select">
+            <option value="Cumparator">Cumpărător</option>
+            <option value="Vanzator">Vânzător</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Creează cont</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

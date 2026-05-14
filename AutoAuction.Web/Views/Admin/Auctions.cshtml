@@ -1,0 +1,40 @@
+@model IReadOnlyList<AutoAuction.Domain.Entities.Auction>
+@using AutoAuction.Domain.Enums
+
+@{
+    ViewData["Title"] = "Administrare licitații";
+}
+
+<h1 class="h3 mb-3">Administrare licitații</h1>
+
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Titlu</th>
+            <th>Mașină</th>
+            <th>Status</th>
+            <th>Preț</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var auction in Model)
+        {
+            <tr>
+                <td>@auction.Title</td>
+                <td>@auction.Brand?.Name @auction.CarModel?.Name</td>
+                <td>@auction.Status</td>
+                <td>@auction.CurrentPrice.ToString("N2") EUR</td>
+                <td class="d-flex gap-2">
+                    <a class="btn btn-sm btn-outline-primary" asp-controller="Auctions" asp-action="Details" asp-route-id="@auction.Id">Detalii</a>
+                    @if (auction.Status != AuctionStatus.Cancelled && auction.Status != AuctionStatus.Ended)
+                    {
+                        <form asp-action="CancelAuction" asp-route-id="@auction.Id" method="post">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">Anulează</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

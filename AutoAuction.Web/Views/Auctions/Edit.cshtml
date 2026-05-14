@@ -1,0 +1,158 @@
+@model AutoAuction.Web.Models.AuctionFormViewModel
+
+@{
+    ViewData["Title"] = "Editează licitație";
+}
+
+<h1 class="h3 mb-3">Editează licitație auto</h1>
+
+<form asp-action="Edit" method="post" enctype="multipart/form-data" class="row g-3">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="col-md-8">
+        <label asp-for="Title" class="form-label">Titlu</label>
+        <input asp-for="Title" class="form-control" />
+        <span asp-validation-for="Title" class="text-danger"></span>
+    </div>
+    <div class="col-md-2">
+        <label asp-for="Year" class="form-label">An</label>
+        <input asp-for="Year" class="form-control" />
+    </div>
+    <div class="col-md-2">
+        <label asp-for="Mileage" class="form-label">Kilometraj</label>
+        <input asp-for="Mileage" class="form-control" />
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="BrandId" class="form-label">Marcă</label>
+        <select asp-for="BrandId" asp-items="Model.Brands" class="form-select"></select>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="CarModelId" class="form-label">Model</label>
+        <select asp-for="CarModelId" asp-items="Model.Models" class="form-select"></select>
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="FuelTypeId" class="form-label">Combustibil</label>
+        <select asp-for="FuelTypeId" asp-items="Model.FuelTypes" class="form-select"></select>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="TransmissionTypeId" class="form-label">Cutie</label>
+        <select asp-for="TransmissionTypeId" asp-items="Model.TransmissionTypes" class="form-select"></select>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="BodyTypeId" class="form-label">Caroserie</label>
+        <select asp-for="BodyTypeId" asp-items="Model.BodyTypes" class="form-select"></select>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="ConditionId" class="form-label">Stare</label>
+        <select asp-for="ConditionId" asp-items="Model.Conditions" class="form-select"></select>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="DriveTypeId" class="form-label">Tracțiune</label>
+        <select asp-for="DriveTypeId" asp-items="Model.DriveTypes" class="form-select"></select>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="ColorId" class="form-label">Culoare</label>
+        <select asp-for="ColorId" asp-items="Model.Colors" class="form-select"></select>
+    </div>
+
+    <div class="col-12">
+        <label asp-for="Description" class="form-label">Descriere</label>
+        <textarea asp-for="Description" rows="4" class="form-control"></textarea>
+    </div>
+    <div class="col-12">
+        <label asp-for="Images" class="form-label">Poze</label>
+        <input asp-for="Images" type="file" multiple accept="image/*" class="form-control" />
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="StartingPrice" class="form-label">Preț pornire</label>
+        <input asp-for="StartingPrice" class="form-control" />
+    </div>
+    <div class="col-md-4">
+        <label asp-for="MinimumBidIncrement" class="form-label">Pas minim bid</label>
+        <input asp-for="MinimumBidIncrement" class="form-control" />
+        <span asp-validation-for="MinimumBidIncrement" class="text-danger"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="StartTime" class="form-label">Start</label>
+        <input asp-for="StartTime" type="datetime-local" class="form-control" />
+    </div>
+    <div class="col-md-4">
+        <label asp-for="EndTime" class="form-label">Final</label>
+        <input asp-for="EndTime" type="datetime-local" class="form-control" />
+        <span asp-validation-for="EndTime" class="text-danger"></span>
+    </div>
+
+    <div class="col-12">
+        <h2 class="h5 mt-3">Raport de condiție</h2>
+    </div>
+    <div class="col-md-2">
+        <label asp-for="OverallGrade" class="form-label">Scor</label>
+        <select asp-for="OverallGrade" class="form-select">
+            <option>A</option>
+            <option>B</option>
+            <option>C</option>
+            <option>D</option>
+        </select>
+    </div>
+    <div class="col-md-5">
+        <label asp-for="ExteriorCondition" class="form-label">Exterior</label>
+        <input asp-for="ExteriorCondition" class="form-control" />
+    </div>
+    <div class="col-md-5">
+        <label asp-for="InteriorCondition" class="form-label">Interior</label>
+        <input asp-for="InteriorCondition" class="form-control" />
+    </div>
+    <div class="col-md-6">
+        <label asp-for="MechanicalCondition" class="form-label">Motor / mecanică</label>
+        <input asp-for="MechanicalCondition" class="form-control" />
+    </div>
+    <div class="col-md-6">
+        <label asp-for="TireCondition" class="form-label">Anvelope</label>
+        <input asp-for="TireCondition" class="form-control" />
+    </div>
+    <div class="col-md-3 form-check ms-2">
+        <input asp-for="HasAccidentHistory" class="form-check-input" />
+        <label asp-for="HasAccidentHistory" class="form-check-label">Istoric accident</label>
+    </div>
+    <div class="col-md-3 form-check">
+        <input asp-for="HasServiceHistory" class="form-check-input" />
+        <label asp-for="HasServiceHistory" class="form-check-label">Istoric service</label>
+    </div>
+    <div class="col-12">
+        <label asp-for="ConditionNotes" class="form-label">Observații</label>
+        <textarea asp-for="ConditionNotes" rows="3" class="form-control"></textarea>
+    </div>
+
+    <div class="col-12">
+        <button type="submit" class="btn btn-primary">Salvează modificările</button>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const brandSelect = document.getElementById("BrandId");
+        const modelSelect = document.getElementById("CarModelId");
+
+        async function loadModelsForBrand() {
+            const selectedModel = modelSelect.value;
+            const brandId = brandSelect.value;
+            const response = await fetch(`/Auctions/ModelsByBrand?brandId=${brandId}`);
+            const models = await response.json();
+
+            modelSelect.innerHTML = "";
+            for (const model of models) {
+                const option = document.createElement("option");
+                option.value = model.id;
+                option.textContent = model.name;
+                option.selected = model.id.toString() === selectedModel;
+                modelSelect.appendChild(option);
+            }
+        }
+
+        brandSelect.addEventListener("change", loadModelsForBrand);
+    </script>
+}

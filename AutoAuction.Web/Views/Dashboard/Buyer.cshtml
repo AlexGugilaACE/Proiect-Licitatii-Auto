@@ -1,0 +1,69 @@
+@model AutoAuction.Web.Models.BuyerDashboardViewModel
+
+@{
+    ViewData["Title"] = "Dashboard cumpărător";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3">Dashboard cumpărător</h1>
+    <a class="btn btn-primary" asp-controller="Auctions" asp-action="Index">Vezi licitații</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4"><div class="card"><div class="card-body"><div class="text-muted">Bid-uri</div><div class="fs-4">@Model.BidCount</div></div></div></div>
+    <div class="col-md-4"><div class="card"><div class="card-body"><div class="text-muted">Favorite</div><div class="fs-4">@Model.FavoriteCount</div></div></div></div>
+    <div class="col-md-4"><div class="card"><div class="card-body"><div class="text-muted">Câștigate</div><div class="fs-4">@Model.WonTransactionCount</div></div></div></div>
+</div>
+
+<h2 class="h5">Licitații la care ai participat</h2>
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Licitație</th>
+            <th>Mașină</th>
+            <th>Oferta ta maximă</th>
+            <th>Preț curent</th>
+            <th>Bid-uri</th>
+            <th>Ultimul bid</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var auction in Model.RecentBidAuctions)
+        {
+            <tr>
+                <td>@auction.AuctionTitle</td>
+                <td>@auction.VehicleName</td>
+                <td>@auction.HighestOwnBid.ToString("N2") EUR</td>
+                <td>@auction.CurrentPrice.ToString("N2") EUR</td>
+                <td>@auction.OwnBidCount</td>
+                <td>@auction.LastBidAt.ToLocalTime().ToString("g")</td>
+                <td class="d-flex gap-2">
+                    <a class="btn btn-sm btn-outline-secondary" asp-controller="Auctions" asp-action="Bids" asp-route-id="@auction.AuctionId">Bid-uri</a>
+                    <a class="btn btn-sm btn-outline-primary" asp-controller="Auctions" asp-action="Details" asp-route-id="@auction.AuctionId">Detalii licitație</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2 class="h5 mt-4">Favorite recente</h2>
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Licitație</th>
+            <th>Preț curent</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var favorite in Model.Favorites)
+        {
+            <tr>
+                <td>@favorite.Auction?.Title</td>
+                <td>@favorite.Auction?.CurrentPrice.ToString("N2") EUR</td>
+                <td><a asp-controller="Auctions" asp-action="Details" asp-route-id="@favorite.AuctionId">Detalii</a></td>
+            </tr>
+        }
+    </tbody>
+</table>

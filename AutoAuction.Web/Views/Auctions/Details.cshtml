@@ -1,0 +1,173 @@
+@model AutoAuction.Domain.Entities.Auction
+@using AutoAuction.Domain.Enums
+
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success">@success</div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+<div id="outbidAlert" class="alert alert-danger d-none" role="alert">
+    Ai fost depășit. A fost plasată o ofertă mai mare pentru această licitație.
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <h1 class="h3">@Model.Title</h1>
+        <p class="text-muted">@Model.Brand?.Name @Model.CarModel?.Name, @Model.Year, @Model.Mileage km</p>
+        @if (User.IsInRole("Vanzator"))
+        {
+            <a class="btn btn-outline-secondary btn-sm mb-3" asp-action="Edit" asp-route-id="@Model.Id">Editează</a>
+        }
+        @if (Model.Images.Count > 0)
+        {
+            <div class="row g-2 mb-3">
+                @foreach (var image in Model.Images.OrderBy(x => x.SortOrder))
+                {
+                    <div class="col-6 col-md-4">
+                        <img src="@image.FilePath" alt="@Model.Title" class="img-fluid rounded border" />
+                    </div>
+                }
+            </div>
+        }
+        <p>@Model.Description</p>
+
+        <h2 class="h5 mt-4">Caracteristici</h2>
+        <dl class="row">
+            <dt class="col-sm-3">Combustibil</dt>
+            <dd class="col-sm-9">@Model.FuelType?.Name</dd>
+            <dt class="col-sm-3">Cutie</dt>
+            <dd class="col-sm-9">@Model.TransmissionType?.Name</dd>
+            <dt class="col-sm-3">Caroserie</dt>
+            <dd class="col-sm-9">@Model.BodyType?.Name</dd>
+            <dt class="col-sm-3">Stare</dt>
+            <dd class="col-sm-9">@Model.Condition?.Name</dd>
+            <dt class="col-sm-3">Tracțiune</dt>
+            <dd class="col-sm-9">@Model.DriveType?.Name</dd>
+            <dt class="col-sm-3">Culoare</dt>
+            <dd class="col-sm-9">@Model.Color?.Name</dd>
+        </dl>
+
+        <h2 class="h5 mt-4">Raport de condiție</h2>
+        <dl class="row">
+            <dt class="col-sm-3">Scor</dt>
+            <dd class="col-sm-9">@Model.ConditionReport?.OverallGrade</dd>
+            <dt class="col-sm-3">Exterior</dt>
+            <dd class="col-sm-9">@Model.ConditionReport?.ExteriorCondition</dd>
+            <dt class="col-sm-3">Interior</dt>
+            <dd class="col-sm-9">@Model.ConditionReport?.InteriorCondition</dd>
+            <dt class="col-sm-3">Mecanică</dt>
+            <dd class="col-sm-9">@Model.ConditionReport?.MechanicalCondition</dd>
+            <dt class="col-sm-3">Anvelope</dt>
+            <dd class="col-sm-9">@Model.ConditionReport?.TireCondition</dd>
+        </dl>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <span class="badge text-bg-@(Model.Status == AuctionStatus.Active ? "success" : "secondary")">@Model.Status</span>
+                <h2 class="h4 mt-3"><span id="currentPrice">@Model.CurrentPrice.ToString("N2")</span> EUR</h2>
+                <p class="text-muted mb-1">Pas minim bid: @Model.MinimumBidIncrement.ToString("N2") EUR</p>
+                <p class="text-muted mb-1">Final: @Model.EndTime.ToLocalTime().ToString("g")</p>
+                <div id="countdown" class="alert alert-secondary py-2"></div>
+                <div id="auctionEndedAlert" class="alert alert-warning d-none">Licitația s-a încheiat.</div>
+
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <form asp-controller="Favorites" asp-action="Toggle" asp-route-auctionId="@Model.Id" method="post" class="mb-3">
+                        <button class="btn btn-outline-secondary" type="submit">
+                            @((ViewBag.IsFavorite as bool?) == true ? "Elimină din favorite" : "Adaugă la favorite")
+                        </button>
+                    </form>
+                }
+
+                @if (User.IsInRole("Cumparator") && Model.Status == AuctionStatus.Active)
+                {
+                    <form id="bidForm" asp-action="Bid" asp-route-id="@Model.Id" method="post" class="d-flex gap-2">
+                        <input name="amount" type="number" min="@(Model.CurrentPrice + Model.MinimumBidIncrement)" step="@Model.MinimumBidIncrement" class="form-control" placeholder="Oferta" />
+                        <button class="btn btn-primary" type="submit">Licitează</button>
+                    </form>
+                }
+                else if (!User.Identity?.IsAuthenticated ?? true)
+                {
+                    <a class="btn btn-outline-primary" asp-controller="Account" asp-action="Login">Login pentru bid</a>
+                }
+            </div>
+        </div>
+
+        <h2 class="h5 mt-4">Istoric oferte</h2>
+        <ul id="bidHistory" class="list-group">
+            @foreach (var bid in Model.Bids.OrderByDescending(x => x.Amount))
+            {
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>@bid.Amount.ToString("N2") EUR</span>
+                    <small>@bid.CreatedAt.ToLocalTime().ToString("g")</small>
+                </li>
+            }
+        </ul>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script>
+        const connection = new signalR.HubConnectionBuilder().withUrl("/auctionHub").build();
+        const endTime = new Date("@Model.EndTime.ToUniversalTime().ToString("O")");
+        const countdown = document.getElementById("countdown");
+        const endedAlert = document.getElementById("auctionEndedAlert");
+        const bidForm = document.getElementById("bidForm");
+
+        function formatMoney(value) {
+            return Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function updateCountdown() {
+            const diff = endTime - new Date();
+            if (diff <= 0) {
+                countdown.textContent = "Timp rămas: 00:00:00";
+                countdown.classList.remove("alert-secondary");
+                countdown.classList.add("alert-warning");
+                endedAlert.classList.remove("d-none");
+                if (bidForm) {
+                    bidForm.classList.add("d-none");
+                }
+                return;
+            }
+
+            const totalSeconds = Math.floor(diff / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            countdown.textContent = `Timp rămas: ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+        }
+
+        connection.on("BidPlaced", (auctionId, currentPrice, createdAt) => {
+            if (auctionId === @Model.Id) {
+                document.getElementById("currentPrice").textContent = formatMoney(currentPrice);
+                const history = document.getElementById("bidHistory");
+                const item = document.createElement("li");
+                item.className = "list-group-item d-flex justify-content-between";
+                const date = createdAt ? new Date(createdAt).toLocaleString() : new Date().toLocaleString();
+                item.innerHTML = `<span>${formatMoney(currentPrice)} EUR</span><small>${date}</small>`;
+                history.prepend(item);
+            }
+        });
+        connection.on("Outbid", (auctionId, currentPrice) => {
+            if (auctionId === @Model.Id) {
+                const alert = document.getElementById("outbidAlert");
+                alert.classList.remove("d-none");
+                document.getElementById("currentPrice").textContent = formatMoney(currentPrice);
+            }
+        });
+        connection.start().then(() => connection.invoke("JoinAuction", @Model.Id));
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+    </script>
+}

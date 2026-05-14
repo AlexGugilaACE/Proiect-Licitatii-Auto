@@ -1,0 +1,63 @@
+@model AutoAuction.Web.Models.SellerDashboardViewModel
+
+@{
+    ViewData["Title"] = "Dashboard vânzător";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3">Dashboard vânzător</h1>
+    <a class="btn btn-primary" asp-controller="Auctions" asp-action="Create">Adaugă licitație</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Licitații</div><div class="fs-4">@Model.AuctionCount</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Active</div><div class="fs-4">@Model.ActiveAuctionCount</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Finalizate</div><div class="fs-4">@Model.EndedAuctionCount</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><div class="text-muted">Tranzacții</div><div class="fs-4">@Model.TransactionCount</div></div></div></div>
+</div>
+
+<h2 class="h5">Licitații recente</h2>
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Titlu</th>
+            <th>Status</th>
+            <th>Preț</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var auction in Model.RecentAuctions)
+        {
+            <tr>
+                <td>@auction.Title</td>
+                <td>@auction.Status</td>
+                <td>@auction.CurrentPrice.ToString("N2") EUR</td>
+                <td><a asp-controller="Auctions" asp-action="Details" asp-route-id="@auction.Id">Detalii</a></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2 class="h5 mt-4">Tranzacții recente</h2>
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Licitație</th>
+            <th>Sumă</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var transaction in Model.RecentTransactions)
+        {
+            <tr>
+                <td>@transaction.Auction?.Title</td>
+                <td>@transaction.Amount.ToString("N2") EUR</td>
+                <td>@transaction.Status</td>
+                <td><a asp-controller="Transactions" asp-action="Details" asp-route-id="@transaction.Id">Detalii</a></td>
+            </tr>
+        }
+    </tbody>
+</table>
