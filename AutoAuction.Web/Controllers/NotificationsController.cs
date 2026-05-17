@@ -23,4 +23,13 @@ public class NotificationsController(INotificationService notificationService) :
         await notificationService.MarkAllReadAsync(userId, cancellationToken);
         return RedirectToAction(nameof(Index));
     }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MarkRead(int id, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        await notificationService.MarkReadAsync(id, userId, cancellationToken);
+        return RedirectToAction(nameof(Index));
+    }
 }

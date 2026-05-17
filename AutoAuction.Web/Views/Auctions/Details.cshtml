@@ -3,6 +3,8 @@
 
 @{
     ViewData["Title"] = Model.Title;
+    var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    var isOwnAuction = User.Identity?.IsAuthenticated == true && Model.SellerId == currentUserId;
 }
 
 @if (TempData["Success"] is string success)
@@ -17,11 +19,30 @@
     Ai fost depășit. A fost plasată o ofertă mai mare pentru această licitație.
 </div>
 
+@if (Model.Status == AuctionStatus.Ended)
+{
+    <div class="alert alert-success">
+        Licitația s-a încheiat. Preț final: <strong>@Model.CurrentPrice.ToString("N2") EUR</strong>.
+        @if (User.Identity?.IsAuthenticated == true && Model.WinningBid?.BidderId == User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)
+        {
+            <span>Ai câștigat această licitație.</span>
+        }
+        else if (User.Identity?.IsAuthenticated == true && Model.SellerId == User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)
+        {
+            <span>Licitația ta a fost câștigată.</span>
+        }
+    </div>
+}
+else if (Model.Status == AuctionStatus.Unsold)
+{
+    <div class="alert alert-warning">Licitația s-a încheiat fără oferte.</div>
+}
+
 <div class="row g-4">
     <div class="col-lg-8">
         <h1 class="h3">@Model.Title</h1>
         <p class="text-muted">@Model.Brand?.Name @Model.CarModel?.Name, @Model.Year, @Model.Mileage km</p>
-        @if (User.IsInRole("Vanzator"))
+        @if (isOwnAuction)
         {
             <a class="btn btn-outline-secondary btn-sm mb-3" asp-action="Edit" asp-route-id="@Model.Id">Editează</a>
         }
@@ -40,6 +61,12 @@
 
         <h2 class="h5 mt-4">Caracteristici</h2>
         <dl class="row">
+            <dt class="col-sm-3">VIN</dt>
+            <dd class="col-sm-9">@Model.Vin</dd>
+            <dt class="col-sm-3">Capacitate cilindrica</dt>
+            <dd class="col-sm-9">@Model.EngineCapacityCm3.ToString("N0") cmc</dd>
+            <dt class="col-sm-3">Putere</dt>
+            <dd class="col-sm-9">@Model.HorsePower CP</dd>
             <dt class="col-sm-3">Combustibil</dt>
             <dd class="col-sm-9">@Model.FuelType?.Name</dd>
             <dt class="col-sm-3">Cutie</dt>

@@ -4,6 +4,7 @@ using AutoAuction.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AutoAuction.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260514155259_AddTransactionPartyConfirmations")]
+    partial class AddTransactionPartyConfirmations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -62,13 +65,7 @@ namespace AutoAuction.Infrastructure.Data.Migrations
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("EngineCapacityCm3")
-                        .HasColumnType("int");
-
                     b.Property<int>("FuelTypeId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("HorsePower")
                         .HasColumnType("int");
 
                     b.Property<int>("Mileage")
@@ -103,11 +100,6 @@ namespace AutoAuction.Infrastructure.Data.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("Vin")
-                        .IsRequired()
-                        .HasMaxLength(17)
-                        .HasColumnType("nvarchar(17)");
 
                     b.Property<int?>("WinningBidId")
                         .HasColumnType("int");

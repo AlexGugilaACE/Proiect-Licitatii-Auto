@@ -1,38 +1,74 @@
 @model IReadOnlyList<AutoAuction.Domain.Entities.Transaction>
+@using AutoAuction.Domain.Enums
+@using System.Security.Claims
 
 @{
-    ViewData["Title"] = "Tranzacții";
+    ViewData["Title"] = "Tranzactii";
+    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 }
 
-<h1 class="h3 mb-3">Tranzacții</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-1">Tranzactii</h1>
+        <div class="text-muted">Confirmari pentru licitatiile castigate sau vandute.</div>
+    </div>
+</div>
 
 @if (Model.Count == 0)
 {
-    <div class="alert alert-info">Nu există tranzacții pentru contul tău.</div>
+    <div class="alert alert-info">Nu exista tranzactii pentru contul tau.</div>
 }
 else
 {
-    <table class="table table-striped align-middle">
-        <thead>
-            <tr>
-                <th>Licitație</th>
-                <th>Sumă</th>
-                <th>Status</th>
-                <th>Creată</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var transaction in Model)
-            {
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
                 <tr>
-                    <td>@transaction.Auction?.Title</td>
-                    <td>@transaction.Amount.ToString("N2") EUR</td>
-                    <td>@transaction.Status</td>
-                    <td>@transaction.CreatedAt.ToLocalTime().ToString("g")</td>
-                    <td><a asp-action="Details" asp-route-id="@transaction.Id">Detalii</a></td>
+                    <th>Licitatia</th>
+                    <th>Rolul tau</th>
+                    <th>Suma</th>
+                    <th>Status</th>
+                    <th>Confirmari</th>
+                    <th>Creata</th>
+                    <th></th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var transaction in Model)
+                {
+                    var isSeller = transaction.SellerId == currentUserId;
+                    var currentUserConfirmed = isSeller ? transaction.SellerConfirmed : transaction.BuyerConfirmed;
+                    var needsAction = transaction.Status == TransactionStatus.Pending && !currentUserConfirmed;
+                    var statusClass = transaction.Status switch
+                    {
+                        TransactionStatus.Confirmed => "text-bg-success",
+                        TransactionStatus.Cancelled => "text-bg-danger",
+                        _ => "text-bg-warning"
+                    };
+
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">@transaction.Auction?.Title</div>
+                            <div class="text-muted small">@transaction.Auction?.Brand?.Name @transaction.Auction?.CarModel?.Name</div>
+                        </td>
+                        <td>@(isSeller ? "Vanzator" : "Cumparator")</td>
+                        <td>@transaction.Amount.ToString("N2") EUR</td>
+                        <td><span class="badge @statusClass">@transaction.Status</span></td>
+                        <td>
+                            <span class="badge @(transaction.SellerConfirmed ? "text-bg-success" : "text-bg-light border")">Vanzator</span>
+                            <span class="badge @(transaction.BuyerConfirmed ? "text-bg-success" : "text-bg-light border")">Cumparator</span>
+                            @if (needsAction)
+                            {
+                                <span class="badge text-bg-primary">Actiune necesara</span>
+                            }
+                        </td>
+                        <td>@transaction.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@transaction.Id">Detalii</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }

@@ -15,8 +15,11 @@ public class Auction
 
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string Vin { get; set; } = string.Empty;
     public int Year { get; set; }
     public int Mileage { get; set; }
+    public int EngineCapacityCm3 { get; set; }
+    public int HorsePower { get; set; }
 
     public int FuelTypeId { get; set; }
     public CarAttributeOption? FuelType { get; set; }

@@ -18,7 +18,23 @@ public class NotificationService(ApplicationDbContext db) : INotificationService
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.CreatedAt)
             .Take(50)
+            .AsNoTracking()
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> MarkReadAsync(int notificationId, string userId, CancellationToken cancellationToken = default)
+    {
+        var notification = await db.Notifications
+            .FirstOrDefaultAsync(x => x.Id == notificationId && x.UserId == userId, cancellationToken);
+
+        if (notification is null)
+        {
+            return false;
+        }
+
+        notification.IsRead = true;
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     public async Task MarkAllReadAsync(string userId, CancellationToken cancellationToken = default)

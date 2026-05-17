@@ -14,6 +14,12 @@ public class AuctionIndexViewModel
     public int? ConditionId { get; set; }
     public int? MinYear { get; set; }
     public int? MaxYear { get; set; }
+    public int? MinMileage { get; set; }
+    public int? MaxMileage { get; set; }
+    public int? MinEngineCapacityCm3 { get; set; }
+    public int? MaxEngineCapacityCm3 { get; set; }
+    public int? MinHorsePower { get; set; }
+    public int? MaxHorsePower { get; set; }
     public decimal? MinPrice { get; set; }
     public decimal? MaxPrice { get; set; }
     public string? SortBy { get; set; } = "ending";

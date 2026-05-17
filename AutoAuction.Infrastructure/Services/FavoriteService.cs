@@ -14,6 +14,12 @@ public class FavoriteService(ApplicationDbContext db) : IFavoriteService
                 .ThenInclude(x => x!.Brand)
             .Include(x => x.Auction)
                 .ThenInclude(x => x!.CarModel)
+            .Include(x => x.Auction)
+                .ThenInclude(x => x!.FuelType)
+            .Include(x => x.Auction)
+                .ThenInclude(x => x!.TransmissionType)
+            .Include(x => x.Auction)
+                .ThenInclude(x => x!.Images)
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(cancellationToken);

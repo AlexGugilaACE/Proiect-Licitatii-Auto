@@ -4,10 +4,13 @@ public class AuctionCreateDto
 {
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string Vin { get; set; } = string.Empty;
     public int BrandId { get; set; }
     public int CarModelId { get; set; }
     public int Year { get; set; }
     public int Mileage { get; set; }
+    public int EngineCapacityCm3 { get; set; }
+    public int HorsePower { get; set; }
     public int FuelTypeId { get; set; }
     public int TransmissionTypeId { get; set; }
     public int BodyTypeId { get; set; }

@@ -13,6 +13,12 @@ public class AuctionFormViewModel
     [StringLength(4000)]
     public string Description { get; set; } = string.Empty;
 
+    [Required]
+    [StringLength(17, MinimumLength = 17)]
+    [RegularExpression("^[A-HJ-NPR-Za-hj-npr-z0-9]{17}$", ErrorMessage = "VIN-ul trebuie sa aiba 17 caractere si sa nu contina I, O sau Q.")]
+    [Display(Name = "VIN")]
+    public string Vin { get; set; } = string.Empty;
+
     [Display(Name = "Marca")]
     public int BrandId { get; set; }
 
@@ -24,6 +30,14 @@ public class AuctionFormViewModel
 
     [Range(0, 2_000_000)]
     public int Mileage { get; set; }
+
+    [Range(500, 10_000)]
+    [Display(Name = "Capacitate cilindrica")]
+    public int EngineCapacityCm3 { get; set; } = 1_600;
+
+    [Range(20, 2_000)]
+    [Display(Name = "Putere")]
+    public int HorsePower { get; set; } = 120;
 
     public int FuelTypeId { get; set; }
     public int TransmissionTypeId { get; set; }
@@ -49,7 +63,10 @@ public class AuctionFormViewModel
     public bool HasAccidentHistory { get; set; }
     public bool HasServiceHistory { get; set; }
     public string ConditionNotes { get; set; } = string.Empty;
-    public IReadOnlyList<IFormFile> Images { get; set; } = [];
+    public List<IFormFile>? Images { get; set; }
+    public IReadOnlyList<AuctionImageViewModel> ExistingImages { get; set; } = [];
+    public bool HasBids { get; set; }
+    public bool IsFinalized { get; set; }
 
     public IReadOnlyList<SelectListItem> Brands { get; set; } = [];
     public IReadOnlyList<SelectListItem> Models { get; set; } = [];
@@ -59,4 +76,12 @@ public class AuctionFormViewModel
     public IReadOnlyList<SelectListItem> Conditions { get; set; } = [];
     public IReadOnlyList<SelectListItem> DriveTypes { get; set; } = [];
     public IReadOnlyList<SelectListItem> Colors { get; set; } = [];
+}
+
+public class AuctionImageViewModel
+{
+    public int Id { get; set; }
+    public string FilePath { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public bool IsMainImage { get; set; }
 }

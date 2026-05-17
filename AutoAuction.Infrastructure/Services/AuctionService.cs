@@ -72,6 +72,36 @@ public class AuctionService(ApplicationDbContext db) : IAuctionService
             query = query.Where(x => x.Year <= search.MaxYear.Value);
         }
 
+        if (search.MinMileage is not null)
+        {
+            query = query.Where(x => x.Mileage >= search.MinMileage.Value);
+        }
+
+        if (search.MaxMileage is not null)
+        {
+            query = query.Where(x => x.Mileage <= search.MaxMileage.Value);
+        }
+
+        if (search.MinEngineCapacityCm3 is not null)
+        {
+            query = query.Where(x => x.EngineCapacityCm3 >= search.MinEngineCapacityCm3.Value);
+        }
+
+        if (search.MaxEngineCapacityCm3 is not null)
+        {
+            query = query.Where(x => x.EngineCapacityCm3 <= search.MaxEngineCapacityCm3.Value);
+        }
+
+        if (search.MinHorsePower is not null)
+        {
+            query = query.Where(x => x.HorsePower >= search.MinHorsePower.Value);
+        }
+
+        if (search.MaxHorsePower is not null)
+        {
+            query = query.Where(x => x.HorsePower <= search.MaxHorsePower.Value);
+        }
+
         if (search.MinPrice is not null)
         {
             query = query.Where(x => x.CurrentPrice >= search.MinPrice.Value);
@@ -134,12 +164,15 @@ public class AuctionService(ApplicationDbContext db) : IAuctionService
         var auction = new Auction
         {
             SellerId = sellerId,
+            Vin = dto.Vin,
             BrandId = dto.BrandId,
             CarModelId = dto.CarModelId,
             Title = dto.Title,
             Description = dto.Description,
             Year = dto.Year,
             Mileage = dto.Mileage,
+            EngineCapacityCm3 = dto.EngineCapacityCm3,
+            HorsePower = dto.HorsePower,
             FuelTypeId = dto.FuelTypeId,
             TransmissionTypeId = dto.TransmissionTypeId,
             BodyTypeId = dto.BodyTypeId,
@@ -172,6 +205,7 @@ public class AuctionService(ApplicationDbContext db) : IAuctionService
 
     public async Task AddImagesAsync(int auctionId, IReadOnlyList<(string FileName, string FilePath)> images, CancellationToken cancellationToken = default)
     {
+        var existingCount = await db.AuctionImages.CountAsync(x => x.AuctionId == auctionId, cancellationToken);
         for (var i = 0; i < images.Count; i++)
         {
             db.AuctionImages.Add(new AuctionImage
@@ -179,12 +213,64 @@ public class AuctionService(ApplicationDbContext db) : IAuctionService
                 AuctionId = auctionId,
                 FileName = images[i].FileName,
                 FilePath = images[i].FilePath,
-                SortOrder = i,
-                IsMainImage = i == 0
+                SortOrder = existingCount + i,
+                IsMainImage = existingCount == 0 && i == 0
             });
         }
 
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<bool> DeleteImageAsync(int auctionId, int imageId, string sellerId, CancellationToken cancellationToken = default)
+    {
+        var image = await db.AuctionImages
+            .Include(x => x.Auction)
+            .FirstOrDefaultAsync(x => x.Id == imageId && x.AuctionId == auctionId && x.Auction!.SellerId == sellerId, cancellationToken);
+
+        if (image is null)
+        {
+            return false;
+        }
+
+        var wasMainImage = image.IsMainImage;
+        db.AuctionImages.Remove(image);
+
+        if (wasMainImage)
+        {
+            var nextMainImage = await db.AuctionImages
+                .Where(x => x.AuctionId == auctionId && x.Id != imageId)
+                .OrderBy(x => x.SortOrder)
+                .ThenBy(x => x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (nextMainImage is not null)
+            {
+                nextMainImage.IsMainImage = true;
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SetMainImageAsync(int auctionId, int imageId, string sellerId, CancellationToken cancellationToken = default)
+    {
+        var auction = await db.Auctions
+            .Include(x => x.Images)
+            .FirstOrDefaultAsync(x => x.Id == auctionId && x.SellerId == sellerId, cancellationToken);
+
+        if (auction is null || auction.Images.All(x => x.Id != imageId))
+        {
+            return false;
+        }
+
+        foreach (var image in auction.Images)
+        {
+            image.IsMainImage = image.Id == imageId;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
     public async Task<bool> UpdateAsync(int auctionId, string sellerId, AuctionCreateDto dto, CancellationToken cancellationToken = default)
@@ -205,23 +291,28 @@ public class AuctionService(ApplicationDbContext db) : IAuctionService
         auction.CarModelId = dto.CarModelId;
         auction.Title = dto.Title;
         auction.Description = dto.Description;
+        auction.Vin = dto.Vin;
         auction.Year = dto.Year;
         auction.Mileage = dto.Mileage;
+        auction.EngineCapacityCm3 = dto.EngineCapacityCm3;
+        auction.HorsePower = dto.HorsePower;
         auction.FuelTypeId = dto.FuelTypeId;
         auction.TransmissionTypeId = dto.TransmissionTypeId;
         auction.BodyTypeId = dto.BodyTypeId;
         auction.ConditionId = dto.ConditionId;
         auction.DriveTypeId = dto.DriveTypeId;
         auction.ColorId = dto.ColorId;
-        auction.StartTime = start;
-        auction.EndTime = end;
-        auction.StartingPrice = dto.StartingPrice;
-        auction.MinimumBidIncrement = dto.MinimumBidIncrement;
-        if (!await db.Bids.AnyAsync(x => x.AuctionId == auctionId, cancellationToken))
+        var hasBids = await db.Bids.AnyAsync(x => x.AuctionId == auctionId, cancellationToken);
+        if (!hasBids)
         {
+            auction.StartTime = start;
+            auction.EndTime = end;
+            auction.StartingPrice = dto.StartingPrice;
             auction.CurrentPrice = dto.StartingPrice;
+            auction.MinimumBidIncrement = dto.MinimumBidIncrement;
+            auction.Status = start <= DateTime.UtcNow ? AuctionStatus.Active : AuctionStatus.Scheduled;
         }
-        auction.Status = start <= DateTime.UtcNow ? AuctionStatus.Active : AuctionStatus.Scheduled;
+
         auction.UpdatedAt = DateTime.UtcNow;
 
         auction.ConditionReport ??= new VehicleConditionReport { AuctionId = auction.Id };
@@ -329,6 +420,13 @@ public class AuctionService(ApplicationDbContext db) : IAuctionService
             if (winningBid is null)
             {
                 auction.Status = AuctionStatus.Unsold;
+                db.Notifications.Add(new Notification
+                {
+                    UserId = auction.SellerId,
+                    Title = "Licitație fără câștigător",
+                    Message = $"Licitația {auction.Title} s-a încheiat fără oferte.",
+                    Type = NotificationType.AuctionEnded
+                });
                 continue;
             }
 
@@ -349,6 +447,31 @@ public class AuctionService(ApplicationDbContext db) : IAuctionService
                 Message = $"Ai castigat licitatia {auction.Title}.",
                 Type = NotificationType.AuctionWon
             });
+
+            db.Notifications.Add(new Notification
+            {
+                UserId = auction.SellerId,
+                Title = "Licitație finalizată",
+                Message = $"Licitația {auction.Title} a fost câștigată cu {winningBid.Amount:N2}.",
+                Type = NotificationType.AuctionEnded
+            });
+
+            var losingBidderIds = auction.Bids
+                .Where(x => x.BidderId != winningBid.BidderId)
+                .Select(x => x.BidderId)
+                .Distinct()
+                .ToList();
+
+            foreach (var bidderId in losingBidderIds)
+            {
+                db.Notifications.Add(new Notification
+                {
+                    UserId = bidderId,
+                    Title = "Licitație pierdută",
+                    Message = $"Licitația {auction.Title} s-a încheiat. Oferta câștigătoare a fost {winningBid.Amount:N2}.",
+                    Type = NotificationType.AuctionLost
+                });
+            }
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -384,6 +507,7 @@ public class AuctionService(ApplicationDbContext db) : IAuctionService
             .Include(x => x.DriveType)
             .Include(x => x.Color)
             .Include(x => x.ConditionReport)
-            .Include(x => x.Images);
+            .Include(x => x.Images)
+            .Include(x => x.WinningBid);
     }
 }

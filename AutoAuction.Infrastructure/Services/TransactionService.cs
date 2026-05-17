@@ -37,8 +37,36 @@ public class TransactionService(ApplicationDbContext db) : ITransactionService
             return false;
         }
 
-        transaction.Status = TransactionStatus.Confirmed;
-        transaction.ConfirmedAt = DateTime.UtcNow;
+        if (transaction.SellerId == userId)
+        {
+            transaction.SellerConfirmed = true;
+        }
+
+        if (transaction.BuyerId == userId)
+        {
+            transaction.BuyerConfirmed = true;
+        }
+
+        if (transaction.SellerConfirmed && transaction.BuyerConfirmed)
+        {
+            transaction.Status = TransactionStatus.Confirmed;
+            transaction.ConfirmedAt = DateTime.UtcNow;
+            db.Notifications.Add(new Domain.Entities.Notification
+            {
+                UserId = transaction.SellerId,
+                Title = "Tranzactie confirmata",
+                Message = "Tranzactia a fost confirmata de ambele parti.",
+                Type = NotificationType.TransactionCreated
+            });
+            db.Notifications.Add(new Domain.Entities.Notification
+            {
+                UserId = transaction.BuyerId,
+                Title = "Tranzactie confirmata",
+                Message = "Tranzactia a fost confirmata de ambele parti.",
+                Type = NotificationType.TransactionCreated
+            });
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -52,12 +80,20 @@ public class TransactionService(ApplicationDbContext db) : ITransactionService
         }
 
         transaction.Status = TransactionStatus.Cancelled;
+        db.Notifications.Add(new Domain.Entities.Notification
+        {
+            UserId = transaction.SellerId == userId ? transaction.BuyerId : transaction.SellerId,
+            Title = "Tranzactie anulata",
+            Message = "Tranzactia a fost anulata.",
+            Type = NotificationType.TransactionCreated
+        });
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }
 
     private static bool CanUpdate(Domain.Entities.Transaction transaction, string userId)
     {
-        return transaction.SellerId == userId || transaction.BuyerId == userId;
+        return transaction.Status == TransactionStatus.Pending
+            && (transaction.SellerId == userId || transaction.BuyerId == userId);
     }
 }

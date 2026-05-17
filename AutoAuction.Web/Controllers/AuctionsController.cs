@@ -16,8 +16,12 @@ public class AuctionsController(
     IAuctionService auctionService,
     IReferenceDataService referenceData,
     IFavoriteService favoriteService,
+    IWebHostEnvironment environment,
     IHubContext<AuctionHub> hubContext) : Controller
 {
+    private static readonly string[] AllowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+    private const long MaxImageSizeBytes = 5 * 1024 * 1024;
+
     public async Task<IActionResult> Index([FromQuery] AuctionIndexViewModel filters, CancellationToken cancellationToken)
     {
         var search = new AuctionSearchDto
@@ -31,6 +35,12 @@ public class AuctionsController(
             ConditionId = filters.ConditionId,
             MinYear = filters.MinYear,
             MaxYear = filters.MaxYear,
+            MinMileage = filters.MinMileage,
+            MaxMileage = filters.MaxMileage,
+            MinEngineCapacityCm3 = filters.MinEngineCapacityCm3,
+            MaxEngineCapacityCm3 = filters.MaxEngineCapacityCm3,
+            MinHorsePower = filters.MinHorsePower,
+            MaxHorsePower = filters.MaxHorsePower,
             MinPrice = filters.MinPrice,
             MaxPrice = filters.MaxPrice,
             SortBy = filters.SortBy,
@@ -44,20 +54,20 @@ public class AuctionsController(
         filters.Page = result.Page;
         filters.Brands = (await referenceData.GetBrandsAsync(cancellationToken))
             .Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == filters.BrandId))
-            .Prepend(new SelectListItem("Toate marcile", string.Empty))
+            .Prepend(new SelectListItem("Alege marca", string.Empty))
             .ToList();
 
         filters.Models = filters.BrandId is > 0
             ? (await referenceData.GetModelsByBrandAsync(filters.BrandId.Value, cancellationToken))
                 .Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == filters.CarModelId))
-                .Prepend(new SelectListItem("Toate modelele", string.Empty))
+                .Prepend(new SelectListItem("Alege modelul", string.Empty))
                 .ToList()
-            : [new SelectListItem("Toate modelele", string.Empty)];
+            : [new SelectListItem("Alege modelul", string.Empty)];
 
-        filters.FuelTypes = await BuildFilterOptionsAsync(AttributeOptionType.FuelType, "Orice combustibil", filters.FuelTypeId, cancellationToken);
-        filters.TransmissionTypes = await BuildFilterOptionsAsync(AttributeOptionType.TransmissionType, "Orice cutie", filters.TransmissionTypeId, cancellationToken);
-        filters.BodyTypes = await BuildFilterOptionsAsync(AttributeOptionType.BodyType, "Orice caroserie", filters.BodyTypeId, cancellationToken);
-        filters.Conditions = await BuildFilterOptionsAsync(AttributeOptionType.Condition, "Orice stare", filters.ConditionId, cancellationToken);
+        filters.FuelTypes = await BuildFilterOptionsAsync(AttributeOptionType.FuelType, "Combustibil", filters.FuelTypeId, cancellationToken);
+        filters.TransmissionTypes = await BuildFilterOptionsAsync(AttributeOptionType.TransmissionType, "Transmisie", filters.TransmissionTypeId, cancellationToken);
+        filters.BodyTypes = await BuildFilterOptionsAsync(AttributeOptionType.BodyType, "Caroserie", filters.BodyTypeId, cancellationToken);
+        filters.Conditions = await BuildFilterOptionsAsync(AttributeOptionType.Condition, "Stare", filters.ConditionId, cancellationToken);
 
         return View(filters);
     }
@@ -122,14 +132,23 @@ public class AuctionsController(
             return NotFound();
         }
 
+        if (auction.Status is AutoAuction.Domain.Enums.AuctionStatus.Ended or AutoAuction.Domain.Enums.AuctionStatus.Unsold or AutoAuction.Domain.Enums.AuctionStatus.Cancelled)
+        {
+            TempData["Error"] = "Licitatia finalizata sau anulata nu mai poate fi editata.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         var model = new AuctionFormViewModel
         {
             Title = auction.Title,
             Description = auction.Description,
+            Vin = auction.Vin,
             BrandId = auction.BrandId,
             CarModelId = auction.CarModelId,
             Year = auction.Year,
             Mileage = auction.Mileage,
+            EngineCapacityCm3 = auction.EngineCapacityCm3,
+            HorsePower = auction.HorsePower,
             FuelTypeId = auction.FuelTypeId,
             TransmissionTypeId = auction.TransmissionTypeId,
             BodyTypeId = auction.BodyTypeId,
@@ -147,7 +166,19 @@ public class AuctionsController(
             TireCondition = auction.ConditionReport?.TireCondition ?? string.Empty,
             HasAccidentHistory = auction.ConditionReport?.HasAccidentHistory ?? false,
             HasServiceHistory = auction.ConditionReport?.HasServiceHistory ?? false,
-            ConditionNotes = auction.ConditionReport?.Notes ?? string.Empty
+            ConditionNotes = auction.ConditionReport?.Notes ?? string.Empty,
+            HasBids = auction.Bids.Count > 0,
+            IsFinalized = auction.Status is AutoAuction.Domain.Enums.AuctionStatus.Ended or AutoAuction.Domain.Enums.AuctionStatus.Unsold or AutoAuction.Domain.Enums.AuctionStatus.Cancelled,
+            ExistingImages = auction.Images
+                .OrderBy(x => x.SortOrder)
+                .Select(x => new AuctionImageViewModel
+                {
+                    Id = x.Id,
+                    FileName = x.FileName,
+                    FilePath = x.FilePath,
+                    IsMainImage = x.IsMainImage
+                })
+                .ToList()
         };
 
         return View(await BuildFormModelAsync(model, cancellationToken));
@@ -176,13 +207,46 @@ public class AuctionsController(
             return NotFound();
         }
 
-        var uploadedImages = await SaveImagesAsync(model.Images, cancellationToken);
+        var uploadedImages = await SaveImagesAsync(model.Images ?? [], cancellationToken);
         if (uploadedImages.Count > 0)
         {
             await auctionService.AddImagesAsync(id, uploadedImages, cancellationToken);
         }
 
         return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Seller)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteImage(int auctionId, int imageId, CancellationToken cancellationToken)
+    {
+        var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var auction = await auctionService.GetDetailsAsync(auctionId, cancellationToken);
+        var image = auction?.Images.FirstOrDefault(x => x.Id == imageId);
+        var deleted = await auctionService.DeleteImageAsync(auctionId, imageId, sellerId, cancellationToken);
+
+        if (deleted && image is not null && image.FilePath.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+        {
+            var relativePath = image.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            var physicalPath = Path.Combine(environment.WebRootPath, relativePath);
+            if (System.IO.File.Exists(physicalPath))
+            {
+                System.IO.File.Delete(physicalPath);
+            }
+        }
+
+        return RedirectToAction(nameof(Edit), new { id = auctionId });
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Seller)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetMainImage(int auctionId, int imageId, CancellationToken cancellationToken)
+    {
+        var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        await auctionService.SetMainImageAsync(auctionId, imageId, sellerId, cancellationToken);
+        return RedirectToAction(nameof(Edit), new { id = auctionId });
     }
 
     [HttpPost]
@@ -204,7 +268,7 @@ public class AuctionsController(
         var dto = MapToDto(model);
 
         var auction = await auctionService.CreateAsync(sellerId, dto, cancellationToken);
-        var uploadedImages = await SaveImagesAsync(model.Images, cancellationToken);
+        var uploadedImages = await SaveImagesAsync(model.Images ?? [], cancellationToken);
         if (uploadedImages.Count > 0)
         {
             await auctionService.AddImagesAsync(auction.Id, uploadedImages, cancellationToken);
@@ -290,13 +354,23 @@ public class AuctionsController(
             return [];
         }
 
-        var uploadRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+        var uploadRoot = Path.Combine(environment.WebRootPath, "uploads");
         Directory.CreateDirectory(uploadRoot);
         var saved = new List<(string FileName, string FilePath)>();
 
         foreach (var file in files.Where(x => x.Length > 0))
         {
             var extension = Path.GetExtension(file.FileName);
+            if (!AllowedImageExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (file.Length > MaxImageSizeBytes)
+            {
+                continue;
+            }
+
             var fileName = $"{Guid.NewGuid():N}{extension}";
             var physicalPath = Path.Combine(uploadRoot, fileName);
 
@@ -314,10 +388,13 @@ public class AuctionsController(
         {
             Title = model.Title,
             Description = model.Description,
+            Vin = model.Vin.Trim().ToUpperInvariant(),
             BrandId = model.BrandId,
             CarModelId = model.CarModelId,
             Year = model.Year,
             Mileage = model.Mileage,
+            EngineCapacityCm3 = model.EngineCapacityCm3,
+            HorsePower = model.HorsePower,
             FuelTypeId = model.FuelTypeId,
             TransmissionTypeId = model.TransmissionTypeId,
             BodyTypeId = model.BodyTypeId,

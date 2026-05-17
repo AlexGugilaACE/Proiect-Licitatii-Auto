@@ -12,6 +12,8 @@ public interface IAuctionService
     Task<Auction> CreateAsync(string sellerId, AuctionCreateDto dto, CancellationToken cancellationToken = default);
     Task<bool> UpdateAsync(int auctionId, string sellerId, AuctionCreateDto dto, CancellationToken cancellationToken = default);
     Task AddImagesAsync(int auctionId, IReadOnlyList<(string FileName, string FilePath)> images, CancellationToken cancellationToken = default);
+    Task<bool> DeleteImageAsync(int auctionId, int imageId, string sellerId, CancellationToken cancellationToken = default);
+    Task<bool> SetMainImageAsync(int auctionId, int imageId, string sellerId, CancellationToken cancellationToken = default);
     Task<BidResult> PlaceBidAsync(int auctionId, string bidderId, decimal amount, CancellationToken cancellationToken = default);
     Task CloseExpiredAuctionsAsync(CancellationToken cancellationToken = default);
 }

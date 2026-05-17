@@ -22,6 +22,21 @@
         <label asp-for="Mileage" class="form-label">Kilometraj</label>
         <input asp-for="Mileage" class="form-control" />
     </div>
+    <div class="col-md-4">
+        <label asp-for="Vin" class="form-label">VIN</label>
+        <input asp-for="Vin" class="form-control" maxlength="17" />
+        <span asp-validation-for="Vin" class="text-danger"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="EngineCapacityCm3" class="form-label">Capacitate cilindrica (cmc)</label>
+        <input asp-for="EngineCapacityCm3" class="form-control" />
+        <span asp-validation-for="EngineCapacityCm3" class="text-danger"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="HorsePower" class="form-label">Putere (CP)</label>
+        <input asp-for="HorsePower" class="form-control" />
+        <span asp-validation-for="HorsePower" class="text-danger"></span>
+    </div>
 
     <div class="col-md-6">
         <label asp-for="BrandId" class="form-label">Marcă</label>
@@ -64,6 +79,7 @@
     <div class="col-12">
         <label asp-for="Images" class="form-label">Poze</label>
         <input asp-for="Images" type="file" multiple accept="image/*" class="form-control" />
+        <div class="form-text">Sunt acceptate JPG, PNG și WEBP, maxim 5 MB per fișier.</div>
     </div>
 
     <div class="col-md-4">

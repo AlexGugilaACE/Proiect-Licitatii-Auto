@@ -30,6 +30,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             entity.Property(x => x.Title).HasMaxLength(160);
             entity.Property(x => x.Description).HasMaxLength(4000);
+            entity.Property(x => x.Vin).HasMaxLength(17);
             entity.Property(x => x.StartingPrice).HasColumnType("decimal(18,2)");
             entity.Property(x => x.CurrentPrice).HasColumnType("decimal(18,2)");
             entity.Property(x => x.MinimumBidIncrement).HasColumnType("decimal(18,2)");
@@ -71,6 +72,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         builder.Entity<Domain.Entities.Transaction>()
             .Property(x => x.Amount)
             .HasColumnType("decimal(18,2)");
+
+        builder.Entity<Domain.Entities.Transaction>()
+            .HasOne(x => x.Auction)
+            .WithMany()
+            .HasForeignKey(x => x.AuctionId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Entity<ApplicationUser>()
             .Property(x => x.RatingAverage)

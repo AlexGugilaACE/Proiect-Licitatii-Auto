@@ -1,13 +1,64 @@
 @model AutoAuction.Web.Models.AuctionFormViewModel
 
 @{
-    ViewData["Title"] = "Editează licitație";
+    ViewData["Title"] = "Editeaza licitatie";
+    var auctionId = ViewContext.RouteData.Values["id"];
 }
 
-<h1 class="h3 mb-3">Editează licitație auto</h1>
+<h1 class="h3 mb-3">Editeaza licitatie auto</h1>
+
+<section class="mb-4">
+    <h2 class="h5">Poze existente</h2>
+    @if (Model.ExistingImages.Count == 0)
+    {
+        <div class="alert alert-info">Aceasta licitatie nu are poze inca.</div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var image in Model.ExistingImages)
+            {
+                <div class="col-6 col-md-3">
+                    <div class="border rounded p-2 h-100">
+                        <img src="@image.FilePath" alt="@image.FileName" class="img-fluid rounded mb-2" style="aspect-ratio: 4 / 3; object-fit: cover;" />
+
+                        @if (image.IsMainImage)
+                        {
+                            <div class="badge text-bg-primary mb-2">Principala</div>
+                        }
+                        else
+                        {
+                            <form asp-action="SetMainImage" method="post" class="mb-2">
+                                <input type="hidden" name="auctionId" value="@auctionId" />
+                                <input type="hidden" name="imageId" value="@image.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-primary w-100">Seteaza principala</button>
+                            </form>
+                        }
+
+                        <form asp-action="DeleteImage" method="post">
+                            <input type="hidden" name="auctionId" value="@auctionId" />
+                            <input type="hidden" name="imageId" value="@image.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-danger w-100">Sterge</button>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</section>
 
 <form asp-action="Edit" method="post" enctype="multipart/form-data" class="row g-3">
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    @if (Model.HasBids)
+    {
+        <div class="col-12">
+            <div class="alert alert-warning">Aceasta licitatie are deja bid-uri. Pretul de pornire, pasul minim si perioada licitatiei nu mai pot fi modificate.</div>
+        </div>
+        <input type="hidden" asp-for="StartingPrice" />
+        <input type="hidden" asp-for="MinimumBidIncrement" />
+        <input type="hidden" asp-for="StartTime" />
+        <input type="hidden" asp-for="EndTime" />
+    }
 
     <div class="col-md-8">
         <label asp-for="Title" class="form-label">Titlu</label>
@@ -22,9 +73,24 @@
         <label asp-for="Mileage" class="form-label">Kilometraj</label>
         <input asp-for="Mileage" class="form-control" />
     </div>
+    <div class="col-md-4">
+        <label asp-for="Vin" class="form-label">VIN</label>
+        <input asp-for="Vin" class="form-control" maxlength="17" />
+        <span asp-validation-for="Vin" class="text-danger"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="EngineCapacityCm3" class="form-label">Capacitate cilindrica (cmc)</label>
+        <input asp-for="EngineCapacityCm3" class="form-control" />
+        <span asp-validation-for="EngineCapacityCm3" class="text-danger"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="HorsePower" class="form-label">Putere (CP)</label>
+        <input asp-for="HorsePower" class="form-control" />
+        <span asp-validation-for="HorsePower" class="text-danger"></span>
+    </div>
 
     <div class="col-md-6">
-        <label asp-for="BrandId" class="form-label">Marcă</label>
+        <label asp-for="BrandId" class="form-label">Marca</label>
         <select asp-for="BrandId" asp-items="Model.Brands" class="form-select"></select>
     </div>
     <div class="col-md-6">
@@ -49,7 +115,7 @@
         <select asp-for="ConditionId" asp-items="Model.Conditions" class="form-select"></select>
     </div>
     <div class="col-md-4">
-        <label asp-for="DriveTypeId" class="form-label">Tracțiune</label>
+        <label asp-for="DriveTypeId" class="form-label">Tractiune</label>
         <select asp-for="DriveTypeId" asp-items="Model.DriveTypes" class="form-select"></select>
     </div>
     <div class="col-md-4">
@@ -61,32 +127,34 @@
         <label asp-for="Description" class="form-label">Descriere</label>
         <textarea asp-for="Description" rows="4" class="form-control"></textarea>
     </div>
+
     <div class="col-12">
-        <label asp-for="Images" class="form-label">Poze</label>
+        <label asp-for="Images" class="form-label">Adauga poze noi</label>
         <input asp-for="Images" type="file" multiple accept="image/*" class="form-control" />
+        <div class="form-text">Pozele existente raman salvate. Sunt acceptate JPG, PNG si WEBP, maxim 5 MB per fisier.</div>
     </div>
 
     <div class="col-md-4">
-        <label asp-for="StartingPrice" class="form-label">Preț pornire</label>
-        <input asp-for="StartingPrice" class="form-control" />
+        <label asp-for="StartingPrice" class="form-label">Pret pornire</label>
+        <input asp-for="StartingPrice" class="form-control" disabled="@Model.HasBids" />
     </div>
     <div class="col-md-4">
         <label asp-for="MinimumBidIncrement" class="form-label">Pas minim bid</label>
-        <input asp-for="MinimumBidIncrement" class="form-control" />
+        <input asp-for="MinimumBidIncrement" class="form-control" disabled="@Model.HasBids" />
         <span asp-validation-for="MinimumBidIncrement" class="text-danger"></span>
     </div>
     <div class="col-md-4">
         <label asp-for="StartTime" class="form-label">Start</label>
-        <input asp-for="StartTime" type="datetime-local" class="form-control" />
+        <input asp-for="StartTime" type="datetime-local" class="form-control" disabled="@Model.HasBids" />
     </div>
     <div class="col-md-4">
         <label asp-for="EndTime" class="form-label">Final</label>
-        <input asp-for="EndTime" type="datetime-local" class="form-control" />
+        <input asp-for="EndTime" type="datetime-local" class="form-control" disabled="@Model.HasBids" />
         <span asp-validation-for="EndTime" class="text-danger"></span>
     </div>
 
     <div class="col-12">
-        <h2 class="h5 mt-3">Raport de condiție</h2>
+        <h2 class="h5 mt-3">Raport de conditie</h2>
     </div>
     <div class="col-md-2">
         <label asp-for="OverallGrade" class="form-label">Scor</label>
@@ -106,7 +174,7 @@
         <input asp-for="InteriorCondition" class="form-control" />
     </div>
     <div class="col-md-6">
-        <label asp-for="MechanicalCondition" class="form-label">Motor / mecanică</label>
+        <label asp-for="MechanicalCondition" class="form-label">Motor / mecanica</label>
         <input asp-for="MechanicalCondition" class="form-control" />
     </div>
     <div class="col-md-6">
@@ -122,12 +190,12 @@
         <label asp-for="HasServiceHistory" class="form-check-label">Istoric service</label>
     </div>
     <div class="col-12">
-        <label asp-for="ConditionNotes" class="form-label">Observații</label>
+        <label asp-for="ConditionNotes" class="form-label">Observatii</label>
         <textarea asp-for="ConditionNotes" rows="3" class="form-control"></textarea>
     </div>
 
     <div class="col-12">
-        <button type="submit" class="btn btn-primary">Salvează modificările</button>
+        <button type="submit" class="btn btn-primary">Salveaza modificarile</button>
     </div>
 </form>
 

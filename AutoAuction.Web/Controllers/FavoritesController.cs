@@ -17,10 +17,16 @@ public class FavoritesController(IFavoriteService favoriteService) : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Toggle(int auctionId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Toggle(int auctionId, string? returnUrl, CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         await favoriteService.ToggleAsync(userId, auctionId, cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return LocalRedirect(returnUrl);
+        }
+
         return RedirectToAction("Details", "Auctions", new { id = auctionId });
     }
 }

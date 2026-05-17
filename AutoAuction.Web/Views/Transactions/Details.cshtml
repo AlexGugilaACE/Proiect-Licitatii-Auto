@@ -1,35 +1,108 @@
 @model AutoAuction.Domain.Entities.Transaction
 @using AutoAuction.Domain.Enums
+@using System.Security.Claims
 
 @{
-    ViewData["Title"] = "Tranzacție";
+    ViewData["Title"] = "Tranzactie";
+    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var isSeller = Model.SellerId == currentUserId;
+    var currentUserConfirmed = (isSeller && Model.SellerConfirmed)
+        || (!isSeller && Model.BuyerConfirmed);
+    var otherPartyConfirmed = isSeller ? Model.BuyerConfirmed : Model.SellerConfirmed;
+    var canAct = Model.Status == TransactionStatus.Pending;
+    var statusClass = Model.Status switch
+    {
+        TransactionStatus.Confirmed => "text-bg-success",
+        TransactionStatus.Cancelled => "text-bg-danger",
+        _ => "text-bg-warning"
+    };
 }
 
-<h1 class="h3 mb-3">Tranzacție #@Model.Id</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-1">Tranzactie #@Model.Id</h1>
+        <div class="text-muted">Rolul tau: @(isSeller ? "vanzator" : "cumparator")</div>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Index">Inapoi</a>
+</div>
 
-<div class="card">
-    <div class="card-body">
-        <h2 class="h5">@Model.Auction?.Title</h2>
-        <p class="text-muted">@Model.Auction?.Brand?.Name @Model.Auction?.CarModel?.Name</p>
-        <dl class="row">
-            <dt class="col-sm-3">Sumă</dt>
-            <dd class="col-sm-9">@Model.Amount.ToString("N2") EUR</dd>
-            <dt class="col-sm-3">Status</dt>
-            <dd class="col-sm-9">@Model.Status</dd>
-            <dt class="col-sm-3">Creată</dt>
-            <dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("g")</dd>
-        </dl>
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">@Model.Auction?.Title</h2>
+                        <p class="text-muted mb-0">@Model.Auction?.Brand?.Name @Model.Auction?.CarModel?.Name</p>
+                    </div>
+                    <span class="badge @statusClass">@Model.Status</span>
+                </div>
 
-        @if (Model.Status == TransactionStatus.Pending)
-        {
-            <div class="d-flex gap-2">
-                <form asp-action="Confirm" asp-route-id="@Model.Id" method="post">
-                    <button class="btn btn-success" type="submit">Confirmă</button>
-                </form>
-                <form asp-action="Cancel" asp-route-id="@Model.Id" method="post">
-                    <button class="btn btn-outline-danger" type="submit">Anulează</button>
-                </form>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Suma finala</dt>
+                    <dd class="col-sm-8">@Model.Amount.ToString("N2") EUR</dd>
+
+                    <dt class="col-sm-4">Confirmare vanzator</dt>
+                    <dd class="col-sm-8">@(Model.SellerConfirmed ? "Confirmat" : "In asteptare")</dd>
+
+                    <dt class="col-sm-4">Confirmare cumparator</dt>
+                    <dd class="col-sm-8">@(Model.BuyerConfirmed ? "Confirmat" : "In asteptare")</dd>
+
+                    <dt class="col-sm-4">Creata</dt>
+                    <dd class="col-sm-8">@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+
+                    @if (Model.ConfirmedAt is not null)
+                    {
+                        <dt class="col-sm-4">Confirmata</dt>
+                        <dd class="col-sm-8">@Model.ConfirmedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+                    }
+                </dl>
             </div>
-        }
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h5">Actiuni</h2>
+
+                @if (Model.Status == TransactionStatus.Confirmed)
+                {
+                    <div class="alert alert-success mb-0">Tranzactia este confirmata de ambele parti.</div>
+                }
+                else if (Model.Status == TransactionStatus.Cancelled)
+                {
+                    <div class="alert alert-danger mb-0">Tranzactia a fost anulata.</div>
+                }
+                else
+                {
+                    @if (currentUserConfirmed)
+                    {
+                        <div class="alert alert-success">Ai confirmat partea ta. Se asteapta confirmarea celeilalte parti.</div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">Confirma doar dupa ce detaliile tranzactiei sunt in regula.</div>
+                    }
+
+                    <div class="mb-3">
+                        <div class="small text-muted">Cealalta parte</div>
+                        <div>@(otherPartyConfirmed ? "A confirmat" : "Nu a confirmat inca")</div>
+                    </div>
+
+                    <div class="d-flex flex-column gap-2">
+                        @if (!currentUserConfirmed)
+                        {
+                            <form asp-action="Confirm" asp-route-id="@Model.Id" method="post">
+                                <button class="btn btn-success w-100" type="submit">Confirm partea mea</button>
+                            </form>
+                        }
+                        <form asp-action="Cancel" asp-route-id="@Model.Id" method="post">
+                            <button class="btn btn-outline-danger w-100" type="submit">Anuleaza tranzactia</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 </div>
