@@ -170,6 +170,41 @@ namespace AutoAuction.Infrastructure.Data.Migrations
                     b.ToTable("AuctionImages");
                 });
 
+            modelBuilder.Entity("AutoAuction.Domain.Entities.AutoBid", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AuctionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BidderId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("MaxAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuctionId", "BidderId")
+                        .IsUnique();
+
+                    b.ToTable("AutoBids");
+                });
+
             modelBuilder.Entity("AutoAuction.Domain.Entities.Bid", b =>
                 {
                     b.Property<int>("Id")
@@ -368,16 +403,17 @@ namespace AutoAuction.Infrastructure.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AuctionId")
+                    b.Property<int?>("AuctionId")
                         .HasColumnType("int");
 
                     b.Property<string>("BuyerId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Comment")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1200)
+                        .HasColumnType("nvarchar(1200)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -387,11 +423,14 @@ namespace AutoAuction.Infrastructure.Data.Migrations
 
                     b.Property<string>("SellerId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AuctionId");
+
+                    b.HasIndex("SellerId", "BuyerId")
+                        .IsUnique();
 
                     b.ToTable("Reviews");
                 });
@@ -826,6 +865,17 @@ namespace AutoAuction.Infrastructure.Data.Migrations
                     b.Navigation("Auction");
                 });
 
+            modelBuilder.Entity("AutoAuction.Domain.Entities.AutoBid", b =>
+                {
+                    b.HasOne("AutoAuction.Domain.Entities.Auction", "Auction")
+                        .WithMany()
+                        .HasForeignKey("AuctionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Auction");
+                });
+
             modelBuilder.Entity("AutoAuction.Domain.Entities.Bid", b =>
                 {
                     b.HasOne("AutoAuction.Domain.Entities.Auction", "Auction")
@@ -864,8 +914,7 @@ namespace AutoAuction.Infrastructure.Data.Migrations
                     b.HasOne("AutoAuction.Domain.Entities.Auction", "Auction")
                         .WithMany()
                         .HasForeignKey("AuctionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Auction");
                 });

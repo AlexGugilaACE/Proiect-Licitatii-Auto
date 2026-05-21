@@ -7,10 +7,10 @@
     var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="dashboard-header mb-3">
     <div>
-        <h1 class="h3 mb-1">Tranzactii</h1>
-        <div class="text-muted">Confirmari pentru licitatiile castigate sau vandute.</div>
+        <h1>Tranzactii</h1>
+        <p>Confirmari pentru licitatiile castigate sau vandute.</p>
     </div>
 </div>
 
@@ -20,55 +20,64 @@
 }
 else
 {
-    <div class="table-responsive">
-        <table class="table table-striped align-middle">
-            <thead>
-                <tr>
-                    <th>Licitatia</th>
-                    <th>Rolul tau</th>
-                    <th>Suma</th>
-                    <th>Status</th>
-                    <th>Confirmari</th>
-                    <th>Creata</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var transaction in Model)
-                {
-                    var isSeller = transaction.SellerId == currentUserId;
-                    var currentUserConfirmed = isSeller ? transaction.SellerConfirmed : transaction.BuyerConfirmed;
-                    var needsAction = transaction.Status == TransactionStatus.Pending && !currentUserConfirmed;
-                    var statusClass = transaction.Status switch
-                    {
-                        TransactionStatus.Confirmed => "text-bg-success",
-                        TransactionStatus.Cancelled => "text-bg-danger",
-                        _ => "text-bg-warning"
-                    };
+    <div class="transaction-list">
+        @foreach (var transaction in Model)
+        {
+            var isSeller = transaction.SellerId == currentUserId;
+            var currentUserConfirmed = isSeller ? transaction.SellerConfirmed : transaction.BuyerConfirmed;
+            var needsAction = transaction.Status == TransactionStatus.Pending && !currentUserConfirmed;
+            var mainImage = transaction.Auction?.Images.OrderByDescending(x => x.IsMainImage).ThenBy(x => x.SortOrder).FirstOrDefault();
+            var statusClass = transaction.Status switch
+            {
+                TransactionStatus.Confirmed => "text-bg-success",
+                TransactionStatus.Cancelled => "text-bg-danger",
+                _ => "text-bg-warning"
+            };
 
-                    <tr>
-                        <td>
-                            <div class="fw-semibold">@transaction.Auction?.Title</div>
-                            <div class="text-muted small">@transaction.Auction?.Brand?.Name @transaction.Auction?.CarModel?.Name</div>
-                        </td>
-                        <td>@(isSeller ? "Vanzator" : "Cumparator")</td>
-                        <td>@transaction.Amount.ToString("N2") EUR</td>
-                        <td><span class="badge @statusClass">@transaction.Status</span></td>
-                        <td>
-                            <span class="badge @(transaction.SellerConfirmed ? "text-bg-success" : "text-bg-light border")">Vanzator</span>
-                            <span class="badge @(transaction.BuyerConfirmed ? "text-bg-success" : "text-bg-light border")">Cumparator</span>
+            <article class="transaction-card clickable-card" data-card-url="@Url.Action("Details", "Transactions", new { id = transaction.Id })">
+                <div class="transaction-card__media">
+                    @if (mainImage is not null)
+                    {
+                        <img src="@mainImage.FilePath" alt="@transaction.Auction?.Title" />
+                    }
+                    else
+                    {
+                        <span>@transaction.Auction?.Brand?.Name @transaction.Auction?.CarModel?.Name</span>
+                    }
+                </div>
+
+                <div class="transaction-card__content">
+                    <div class="transaction-card__main">
+                        <div class="transaction-card__title-row">
+                            <div>
+                                <h2>@transaction.Auction?.Title</h2>
+                                <p>@transaction.Auction?.Brand?.Name @transaction.Auction?.CarModel?.Name · @(isSeller ? "Vanzator" : "Cumparator")</p>
+                            </div>
+                            <span class="badge @statusClass">@transaction.Status</span>
+                        </div>
+
+                        <div class="transaction-card__meta">
+                            <span>Creata: @transaction.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                            <span>Vanzator: @(transaction.SellerConfirmed ? "confirmat" : "in asteptare")</span>
+                            <span>Cumparator: @(transaction.BuyerConfirmed ? "confirmat" : "in asteptare")</span>
                             @if (needsAction)
                             {
-                                <span class="badge text-bg-primary">Actiune necesara</span>
+                                <span class="transaction-card__alert">Actiune necesara</span>
                             }
-                        </td>
-                        <td>@transaction.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                        <td class="text-end">
-                            <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@transaction.Id">Detalii</a>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+                        </div>
+                    </div>
+
+                    <div class="transaction-card__side">
+                        <strong>@transaction.Amount.ToString("N0") EUR</strong>
+                        <a class="favorite-auction__details" asp-action="Details" asp-route-id="@transaction.Id">
+                            Detalii
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M13.3 5.3 20 12l-6.7 6.7-1.4-1.4 4.3-4.3H4v-2h12.2l-4.3-4.3 1.4-1.4Z" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </article>
+        }
     </div>
 }

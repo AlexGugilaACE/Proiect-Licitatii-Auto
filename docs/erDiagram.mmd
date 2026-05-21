@@ -1,0 +1,128 @@
+erDiagram
+    APPLICATION_USER ||--o{ AUCTION : posteaza
+    APPLICATION_USER ||--o{ BID : plaseaza
+    APPLICATION_USER ||--o{ FAVORITE : salveaza
+    APPLICATION_USER ||--o{ NOTIFICATION : primeste
+    APPLICATION_USER ||--o{ REVIEW : primeste
+    APPLICATION_USER ||--o{ TRANSACTION : participa
+    APPLICATION_USER ||--o| DEALER_PROFILE : are
+
+    BRAND ||--o{ CAR_MODEL : contine
+    BRAND ||--o{ AUCTION : clasifica
+    CAR_MODEL ||--o{ AUCTION : clasifica
+    CAR_ATTRIBUTE_OPTION ||--o{ AUCTION : combustibil
+    CAR_ATTRIBUTE_OPTION ||--o{ AUCTION : transmisie
+    CAR_ATTRIBUTE_OPTION ||--o{ AUCTION : caroserie
+    CAR_ATTRIBUTE_OPTION ||--o{ AUCTION : stare
+    CAR_ATTRIBUTE_OPTION ||--o{ AUCTION : tractiune
+    CAR_ATTRIBUTE_OPTION ||--o{ AUCTION : culoare
+
+    AUCTION ||--o{ AUCTION_IMAGE : are
+    AUCTION ||--o| VEHICLE_CONDITION_REPORT : are
+    AUCTION ||--o{ FAVORITE : este_salvata
+    AUCTION ||--o{ BID : contine
+    AUCTION ||--o| TRANSACTION : genereaza
+    AUCTION ||--o| REVIEW : permite
+    VEHICLE_CONDITION_REPORT ||--o{ VEHICLE_DAMAGE : contine
+
+    APPLICATION_USER {
+        string Id PK
+        string Email
+        string FirstName
+        string LastName
+        string PhoneNumber
+        decimal RatingAverage
+    }
+
+    DEALER_PROFILE {
+        int Id PK
+        string UserId FK
+        string CompanyName
+        string FiscalCode
+        bool IsVerified
+    }
+
+    CAR_ATTRIBUTE_OPTION {
+        int Id PK
+        string Type
+        string Name
+        int SortOrder
+        bool IsActive
+    }
+
+    AUCTION {
+        int Id PK
+        string SellerId FK
+        int BrandId FK
+        int ModelId FK
+        string Title
+        string Description
+        int Year
+        int Mileage
+        int FuelTypeId FK
+        int TransmissionTypeId FK
+        int BodyTypeId FK
+        int ConditionId FK
+        int DriveTypeId FK
+        int ColorId FK
+        string SaleChannel
+        datetime StartTime
+        datetime EndTime
+        decimal StartingPrice
+        decimal CurrentPrice
+        string Status
+        int WinningBidId FK
+    }
+
+    VEHICLE_CONDITION_REPORT {
+        int Id PK
+        int AuctionId FK
+        string OverallGrade
+        string ExteriorCondition
+        string InteriorCondition
+        string MechanicalCondition
+        bool HasAccidentHistory
+    }
+
+    AUCTION_IMAGE {
+        int Id PK
+        int AuctionId FK
+        string FilePath
+        int SortOrder
+        bool IsMainImage
+    }
+
+    VEHICLE_DAMAGE {
+        int Id PK
+        int ConditionReportId FK
+        string Area
+        string Severity
+        string Description
+        string ImagePath
+    }
+
+    BID {
+        int Id PK
+        int AuctionId FK
+        string BidderId FK
+        decimal Amount
+        datetime CreatedAt
+    }
+
+    TRANSACTION {
+        int Id PK
+        int AuctionId FK
+        string SellerId FK
+        string BuyerId FK
+        decimal Amount
+        string Status
+    }
+
+
+    NOTIFICATION {
+        int Id PK
+        string UserId FK
+        string Title
+        string Message
+        bool IsRead
+    }

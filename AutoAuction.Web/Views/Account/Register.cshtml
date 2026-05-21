@@ -1,38 +1,62 @@
 @model AutoAuction.Web.Models.RegisterViewModel
 
 @{
-    ViewData["Title"] = "Înregistrare";
+    ViewData["Title"] = "Inregistrare";
+    var isSeller = Model.Role == "Vanzator";
 }
 
-<h1 class="h3 mb-3">Înregistrare</h1>
+<section class="auth-form-page">
+    <div class="auth-form-card auth-form-card--wide">
+        <div class="auth-form-card__header">
+            <h1>Inregistrare</h1>
+            <p>@(isSeller ? "Creeaza un cont de vanzator pentru a publica licitatii." : "Creeaza un cont pentru a participa la licitatii.")</p>
+        </div>
 
-<form asp-action="Register" method="post" class="col-md-6">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div class="mb-3">
-        <label asp-for="FirstName" class="form-label">Prenume</label>
-        <input asp-for="FirstName" class="form-control" />
+        <form asp-action="Register" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="auth-form-grid">
+                <div class="mb-3">
+                    <label asp-for="FirstName" class="form-label">Prenume</label>
+                    <input asp-for="FirstName" class="form-control" />
+                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="LastName" class="form-label">Nume</label>
+                    <input asp-for="LastName" class="form-control" />
+                    <span asp-validation-for="LastName" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Email" class="form-label">Email</label>
+                <input asp-for="Email" class="form-control" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+
+            <div class="auth-form-grid">
+                <div class="mb-3">
+                    <label asp-for="Password" class="form-label">Parola</label>
+                    <input asp-for="Password" class="form-control" />
+                    <span asp-validation-for="Password" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Role" class="form-label">Tip cont</label>
+                    <select asp-for="Role" class="form-select">
+                        <option value="Cumparator">Cumparator</option>
+                        <option value="Vanzator">Vanzator</option>
+                    </select>
+                    <span asp-validation-for="Role" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="auth-form-actions">
+                <button type="submit" class="btn btn-primary">Creeaza cont</button>
+                <a class="btn btn-outline-secondary" asp-action="Login">Inapoi</a>
+            </div>
+        </form>
     </div>
-    <div class="mb-3">
-        <label asp-for="LastName" class="form-label">Nume</label>
-        <input asp-for="LastName" class="form-control" />
-    </div>
-    <div class="mb-3">
-        <label asp-for="Email" class="form-label">Email</label>
-        <input asp-for="Email" class="form-control" />
-    </div>
-    <div class="mb-3">
-        <label asp-for="Password" class="form-label">Parolă</label>
-        <input asp-for="Password" class="form-control" />
-    </div>
-    <div class="mb-3">
-        <label asp-for="Role" class="form-label">Rol</label>
-        <select asp-for="Role" class="form-select">
-            <option value="Cumparator">Cumpărător</option>
-            <option value="Vanzator">Vânzător</option>
-        </select>
-    </div>
-    <button type="submit" class="btn btn-primary">Creează cont</button>
-</form>
+</section>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

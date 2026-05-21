@@ -1,0 +1,128 @@
+@model AutoAuction.Web.Models.AccountProfileViewModel
+@using System.Globalization
+
+@{
+    ViewData["Title"] = "Contul meu";
+    var roCulture = CultureInfo.GetCultureInfo("ro-RO");
+    var filledStars = (int)Math.Round(Model.RatingAverage, MidpointRounding.AwayFromZero);
+}
+
+<section class="account-page">
+    <div class="account-header">
+        <div>
+            <h1>Contul meu</h1>
+            <p>Administreaza datele contului, parola si recuperarea accesului.</p>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string successMessage)
+    {
+        <div class="alert alert-success">@successMessage</div>
+    }
+    @if (TempData["ErrorMessage"] is string errorMessage)
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+    @if (TempData["RecoveryLink"] is string recoveryLink)
+    {
+        <div class="alert alert-warning">
+            <strong>Link recuperare parola:</strong>
+            <a href="@recoveryLink">@recoveryLink</a>
+        </div>
+    }
+
+    <div class="account-grid">
+        <aside class="account-summary">
+            <div class="account-avatar">@($"{Model.Profile.FirstName.FirstOrDefault()}{Model.Profile.LastName.FirstOrDefault()}".ToUpperInvariant())</div>
+            <h2>@($"{Model.Profile.FirstName} {Model.Profile.LastName}".Trim())</h2>
+            <p>@Model.Email</p>
+            <div class="account-summary__meta">
+                <span>Rol</span>
+                <strong>@Model.Role</strong>
+            </div>
+            <div class="account-summary__meta">
+                <span>Cont creat</span>
+                <strong>@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</strong>
+            </div>
+            @if (Model.IsSeller)
+            {
+                <div class="account-seller-rating">
+                    <span>Rating vanzator</span>
+                    <div class="rating-stars" aria-label="Rating @Model.RatingAverage.ToString("0.0", roCulture) din 5">
+                        @for (var i = 1; i <= 5; i++)
+                        {
+                            <span class="@(i <= filledStars ? "is-filled" : string.Empty)">&#9733;</span>
+                        }
+                    </div>
+                    <strong>@Model.RatingAverage.ToString("0.0", roCulture) / 5</strong>
+                    <small>@Model.RatingCount review-uri</small>
+                </div>
+                <div class="account-summary__actions">
+                    <a class="btn btn-outline-primary btn-sm" asp-controller="Reviews" asp-action="Seller" asp-route-id="@Model.UserId">Vezi review-uri</a>
+                    <a class="btn btn-primary btn-sm" asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+                </div>
+            }
+        </aside>
+
+        <div class="account-panels">
+            <section class="account-panel">
+                <h2>Date profil</h2>
+                <form asp-action="UpdateProfile" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <div class="auth-form-grid">
+                        <div class="mb-3">
+                            <label asp-for="Profile.FirstName" class="form-label"></label>
+                            <input asp-for="Profile.FirstName" class="form-control" />
+                            <span asp-validation-for="Profile.FirstName" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="Profile.LastName" class="form-label"></label>
+                            <input asp-for="Profile.LastName" class="form-control" />
+                            <span asp-validation-for="Profile.LastName" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" type="submit">Salveaza datele</button>
+                </form>
+            </section>
+
+            <section class="account-panel">
+                <h2>Schimba parola</h2>
+                <form asp-action="ChangePassword" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <div class="mb-3">
+                        <label asp-for="ChangePassword.CurrentPassword" class="form-label"></label>
+                        <input asp-for="ChangePassword.CurrentPassword" class="form-control" />
+                        <span asp-validation-for="ChangePassword.CurrentPassword" class="text-danger"></span>
+                    </div>
+                    <div class="auth-form-grid">
+                        <div class="mb-3">
+                            <label asp-for="ChangePassword.NewPassword" class="form-label"></label>
+                            <input asp-for="ChangePassword.NewPassword" class="form-control" />
+                            <span asp-validation-for="ChangePassword.NewPassword" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="ChangePassword.ConfirmPassword" class="form-label"></label>
+                            <input asp-for="ChangePassword.ConfirmPassword" class="form-control" />
+                            <span asp-validation-for="ChangePassword.ConfirmPassword" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" type="submit">Schimba parola</button>
+                </form>
+            </section>
+
+            <section class="account-panel account-panel--recovery">
+                <div>
+                    <h2>Recuperare parola</h2>
+                    <p>Genereaza un link de resetare pentru scenariul de testare local. Intr-o aplicatie reala, acesta ar fi trimis prin email.</p>
+                </div>
+                <form asp-action="GeneratePasswordRecovery" method="post">
+                    <button class="btn btn-outline-primary" type="submit">Genereaza link recuperare</button>
+                </form>
+            </section>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -9,6 +9,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Auction> Auctions => Set<Auction>();
+    public DbSet<AutoBid> AutoBids => Set<AutoBid>();
     public DbSet<AuctionImage> AuctionImages => Set<AuctionImage>();
     public DbSet<Bid> Bids => Set<Bid>();
     public DbSet<Brand> Brands => Set<Brand>();
@@ -57,6 +58,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasIndex(x => new { x.AuctionId, x.Amount });
         });
 
+        builder.Entity<AutoBid>(entity =>
+        {
+            entity.Property(x => x.MaxAmount).HasColumnType("decimal(18,2)");
+            entity.HasIndex(x => new { x.AuctionId, x.BidderId }).IsUnique();
+            entity.HasOne(x => x.Auction)
+                .WithMany()
+                .HasForeignKey(x => x.AuctionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         builder.Entity<Brand>()
             .HasIndex(x => x.Name)
             .IsUnique();
@@ -78,6 +89,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithMany()
             .HasForeignKey(x => x.AuctionId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<Review>(entity =>
+        {
+            entity.Property(x => x.Comment).HasMaxLength(1200);
+            entity.HasOne(x => x.Auction)
+                .WithMany()
+                .HasForeignKey(x => x.AuctionId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(x => new { x.SellerId, x.BuyerId }).IsUnique();
+        });
 
         builder.Entity<ApplicationUser>()
             .Property(x => x.RatingAverage)

@@ -1,5 +1,6 @@
 using AutoAuction.Infrastructure.Identity;
 using AutoAuction.Web.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,10 +10,144 @@ public class AccountController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager) : Controller
 {
+    [Authorize]
     [HttpGet]
-    public IActionResult Register()
+    public async Task<IActionResult> MyAccount()
     {
-        return View(new RegisterViewModel());
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
+        return View(await BuildAccountProfileViewModelAsync(user));
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateProfile([Bind(Prefix = "Profile")] ProfileDetailsViewModel model)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var viewModel = await BuildAccountProfileViewModelAsync(user);
+            viewModel.Profile = model;
+            return View(nameof(MyAccount), viewModel);
+        }
+
+        user.FirstName = model.FirstName.Trim();
+        user.LastName = model.LastName.Trim();
+        var result = await userManager.UpdateAsync(user);
+
+        TempData[result.Succeeded ? "SuccessMessage" : "ErrorMessage"] =
+            result.Succeeded ? "Datele contului au fost actualizate." : "Datele contului nu au putut fi actualizate.";
+
+        return RedirectToAction(nameof(MyAccount));
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword([Bind(Prefix = "ChangePassword")] ChangePasswordViewModel model)
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
+        if (!ModelState.IsValid)
+        {
+            var viewModel = await BuildAccountProfileViewModelAsync(user);
+            viewModel.ChangePassword = model;
+            return View(nameof(MyAccount), viewModel);
+        }
+
+        var result = await userManager.ChangePasswordAsync(user, model.CurrentPassword, model.NewPassword);
+        if (!result.Succeeded)
+        {
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+
+            var viewModel = await BuildAccountProfileViewModelAsync(user);
+            viewModel.ChangePassword = model;
+            return View(nameof(MyAccount), viewModel);
+        }
+
+        await signInManager.RefreshSignInAsync(user);
+        TempData["SuccessMessage"] = "Parola a fost schimbata.";
+        return RedirectToAction(nameof(MyAccount));
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GeneratePasswordRecovery()
+    {
+        var user = await userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return RedirectToAction(nameof(Login));
+        }
+
+        var token = await userManager.GeneratePasswordResetTokenAsync(user);
+        var resetUrl = Url.Action(nameof(ResetPassword), "Account", new { email = user.Email, token }, Request.Scheme);
+        TempData["RecoveryLink"] = resetUrl;
+        TempData["SuccessMessage"] = "Linkul de recuperare a fost generat pentru testare.";
+
+        return RedirectToAction(nameof(MyAccount));
+    }
+
+    [HttpGet]
+    public IActionResult ResetPassword(string email, string token)
+    {
+        return View(new ResetPasswordViewModel { Email = email, Token = token });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        var user = await userManager.FindByEmailAsync(model.Email);
+        if (user is null)
+        {
+            ModelState.AddModelError(string.Empty, "Contul nu a fost gasit.");
+            return View(model);
+        }
+
+        var result = await userManager.ResetPasswordAsync(user, model.Token, model.NewPassword);
+        if (!result.Succeeded)
+        {
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+
+            return View(model);
+        }
+
+        TempData["SuccessMessage"] = "Parola a fost resetata. Te poti autentifica folosind noua parola.";
+        return RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    public IActionResult Register(string? role)
+    {
+        var selectedRole = role == AppRoles.Seller ? AppRoles.Seller : AppRoles.Buyer;
+        return View(new RegisterViewModel { Role = selectedRole });
     }
 
     [HttpPost]
@@ -53,6 +188,12 @@ public class AccountController(
     [HttpGet]
     public IActionResult Login()
     {
+        return View();
+    }
+
+    [HttpGet]
+    public IActionResult LoginForm()
+    {
         return View(new LoginViewModel());
     }
 
@@ -86,5 +227,26 @@ public class AccountController(
     public IActionResult AccessDenied()
     {
         return View();
+    }
+
+    private async Task<AccountProfileViewModel> BuildAccountProfileViewModelAsync(ApplicationUser user)
+    {
+        var roles = await userManager.GetRolesAsync(user);
+
+        return new AccountProfileViewModel
+        {
+            UserId = user.Id,
+            Email = user.Email ?? string.Empty,
+            Role = string.Join(", ", roles),
+            IsSeller = roles.Contains(AppRoles.Seller),
+            CreatedAt = user.CreatedAt,
+            RatingAverage = user.RatingAverage,
+            RatingCount = user.RatingCount,
+            Profile = new ProfileDetailsViewModel
+            {
+                FirstName = user.FirstName,
+                LastName = user.LastName
+            }
+        };
     }
 }

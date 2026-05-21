@@ -13,6 +13,8 @@ namespace AutoAuction.Web.Controllers;
 [Authorize(Roles = AppRoles.Administrator)]
 public class AdminController(ApplicationDbContext db, UserManager<ApplicationUser> userManager) : Controller
 {
+    private const int AdminPageSize = 10;
+
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         var model = new AdminDashboardViewModel
@@ -22,21 +24,40 @@ public class AdminController(ApplicationDbContext db, UserManager<ApplicationUse
             ActiveAuctionCount = await db.Auctions.CountAsync(x => x.Status == AuctionStatus.Active, cancellationToken),
             TransactionCount = await db.Transactions.CountAsync(cancellationToken),
             TransactionTotal = await db.Transactions.SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0,
-            RecentUsers = await userManager.Users.OrderByDescending(x => x.CreatedAt).Take(5).ToListAsync(cancellationToken),
+            RecentUsers = await userManager.Users.OrderByDescending(x => x.CreatedAt).Take(7).ToListAsync(cancellationToken),
             RecentAuctions = await db.Auctions
                 .Include(x => x.Brand)
                 .Include(x => x.CarModel)
+                .Include(x => x.Images)
                 .OrderByDescending(x => x.CreatedAt)
-                .Take(8)
+                .Take(7)
                 .ToListAsync(cancellationToken)
         };
 
         return View(model);
     }
 
-    public async Task<IActionResult> Users(CancellationToken cancellationToken)
+    public async Task<IActionResult> Users(string? query, int page = 1, CancellationToken cancellationToken = default)
     {
-        var users = await userManager.Users.OrderByDescending(x => x.CreatedAt).ToListAsync(cancellationToken);
+        page = Math.Max(1, page);
+        var usersQuery = userManager.Users.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var term = query.Trim();
+            usersQuery = usersQuery.Where(x =>
+                (x.Email != null && x.Email.Contains(term)) ||
+                x.FirstName.Contains(term) ||
+                x.LastName.Contains(term));
+        }
+
+        var totalCount = await usersQuery.CountAsync(cancellationToken);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)AdminPageSize));
+        page = Math.Min(page, totalPages);
+        var users = await usersQuery
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * AdminPageSize)
+            .Take(AdminPageSize)
+            .ToListAsync(cancellationToken);
         var items = new List<AdminUserListItemViewModel>();
 
         foreach (var user in users)
@@ -56,7 +77,11 @@ public class AdminController(ApplicationDbContext db, UserManager<ApplicationUse
         var model = new AdminUsersViewModel
         {
             Users = items,
-            RoleItems = AppRoles.All.Select(x => new SelectListItem(x, x)).ToList()
+            RoleItems = AppRoles.All.Select(x => new SelectListItem(x, x)).ToList(),
+            Query = query,
+            Page = page,
+            TotalPages = totalPages,
+            TotalCount = totalCount
         };
 
         return View(model);
@@ -97,15 +122,56 @@ public class AdminController(ApplicationDbContext db, UserManager<ApplicationUse
         return RedirectToAction(nameof(Users));
     }
 
-    public async Task<IActionResult> Auctions(CancellationToken cancellationToken)
+    public async Task<IActionResult> Auctions(string? query, AuctionStatus? status, int page = 1, CancellationToken cancellationToken = default)
     {
-        var auctions = await db.Auctions
+        page = Math.Max(1, page);
+        var auctionsQuery = db.Auctions
             .Include(x => x.Brand)
             .Include(x => x.CarModel)
+            .Include(x => x.FuelType)
+            .Include(x => x.TransmissionType)
+            .Include(x => x.Images)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var term = query.Trim();
+            auctionsQuery = auctionsQuery.Where(x =>
+                x.Title.Contains(term) ||
+                x.Vin.Contains(term) ||
+                x.Brand!.Name.Contains(term) ||
+                x.CarModel!.Name.Contains(term));
+        }
+
+        if (status.HasValue)
+        {
+            auctionsQuery = auctionsQuery.Where(x => x.Status == status.Value);
+        }
+
+        var totalCount = await auctionsQuery.CountAsync(cancellationToken);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)AdminPageSize));
+        page = Math.Min(page, totalPages);
+        var auctions = await auctionsQuery
             .OrderByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * AdminPageSize)
+            .Take(AdminPageSize)
             .ToListAsync(cancellationToken);
 
-        return View(auctions);
+        var model = new AdminAuctionsViewModel
+        {
+            Auctions = auctions,
+            Query = query,
+            Status = status,
+            Page = page,
+            TotalPages = totalPages,
+            TotalCount = totalCount,
+            StatusItems = Enum.GetValues<AuctionStatus>()
+                .Select(x => new SelectListItem(GetAuctionStatusLabel(x), x.ToString(), x == status))
+                .Prepend(new SelectListItem("Toate statusurile", string.Empty, !status.HasValue))
+                .ToList()
+        };
+
+        return View(model);
     }
 
     public async Task<IActionResult> ReferenceData(CancellationToken cancellationToken)
@@ -207,5 +273,19 @@ public class AdminController(ApplicationDbContext db, UserManager<ApplicationUse
         }
 
         return RedirectToAction(nameof(Auctions));
+    }
+
+    private static string GetAuctionStatusLabel(AuctionStatus status)
+    {
+        return status switch
+        {
+            AuctionStatus.Draft => "Draft",
+            AuctionStatus.Scheduled => "Programată",
+            AuctionStatus.Active => "Activă",
+            AuctionStatus.Ended => "Încheiată",
+            AuctionStatus.Unsold => "Nevândută",
+            AuctionStatus.Cancelled => "Anulată",
+            _ => status.ToString()
+        };
     }
 }

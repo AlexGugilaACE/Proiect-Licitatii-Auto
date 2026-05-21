@@ -1,0 +1,13 @@
+flowchart LR
+    WEB[AutoAuction.Web<br/>MVC Controllers<br/>Views<br/>SignalR Hubs<br/>ViewModels]
+    APP[AutoAuction.Application<br/>Services<br/>DTOs<br/>Interfaces<br/>Use cases]
+    DOMAIN[AutoAuction.Domain<br/>Entities<br/>Enums<br/>Business rules]
+    INFRA[AutoAuction.Infrastructure<br/>EF Core<br/>Identity<br/>Repositories<br/>File storage]
+    TESTS[AutoAuction.Tests<br/>Unit tests<br/>Service tests]
+
+    WEB --> APP
+    APP --> DOMAIN
+    APP --> INFRA
+    INFRA --> DOMAIN
+    TESTS --> APP
+    TESTS --> DOMAIN

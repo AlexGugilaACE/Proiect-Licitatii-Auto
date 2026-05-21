@@ -14,7 +14,7 @@
             <input name="Name" class="form-control" placeholder="Marcă nouă" />
             <button class="btn btn-primary" type="submit">Adaugă</button>
         </form>
-        <ul class="list-group">
+        <ul class="list-group reference-data-list">
             @foreach (var brand in Model.Brands)
             {
                 <li class="list-group-item">@brand.Name</li>
@@ -31,7 +31,7 @@
                 <button class="btn btn-primary" type="submit">Adaugă</button>
             </div>
         </form>
-        <ul class="list-group">
+        <ul class="list-group reference-data-list">
             @foreach (var carModel in Model.Models)
             {
                 <li class="list-group-item">@carModel.Brand?.Name @carModel.Name</li>
@@ -48,7 +48,8 @@
                 <button class="btn btn-primary" type="submit">Adaugă</button>
             </div>
         </form>
-        <table class="table table-sm align-middle">
+        <div class="reference-data-table">
+        <table class="table table-sm align-middle mb-0">
             <thead>
                 <tr>
                     <th>Tip</th>
@@ -71,5 +72,6 @@
                 }
             </tbody>
         </table>
+        </div>
     </div>
 </div>

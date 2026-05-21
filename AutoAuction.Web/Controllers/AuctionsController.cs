@@ -1,13 +1,17 @@
 using AutoAuction.Application.DTOs;
 using AutoAuction.Application.Interfaces;
 using AutoAuction.Domain.Enums;
+using AutoAuction.Infrastructure.Data;
 using AutoAuction.Infrastructure.Identity;
+using AutoAuction.Web.Helpers;
 using AutoAuction.Web.Hubs;
 using AutoAuction.Web.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace AutoAuction.Web.Controllers;
@@ -17,12 +21,27 @@ public class AuctionsController(
     IReferenceDataService referenceData,
     IFavoriteService favoriteService,
     IWebHostEnvironment environment,
-    IHubContext<AuctionHub> hubContext) : Controller
+    IHubContext<AuctionHub> hubContext,
+    UserManager<ApplicationUser> userManager,
+    ApplicationDbContext db) : Controller
 {
     private static readonly string[] AllowedImageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
     private const long MaxImageSizeBytes = 5 * 1024 * 1024;
 
     public async Task<IActionResult> Index([FromQuery] AuctionIndexViewModel filters, CancellationToken cancellationToken)
+    {
+        filters.Page = 1;
+        await PopulateAuctionIndexModelAsync(filters, pageSize: 12, cancellationToken);
+        return View(filters);
+    }
+
+    public async Task<IActionResult> Results([FromQuery] AuctionIndexViewModel filters, CancellationToken cancellationToken)
+    {
+        await PopulateAuctionIndexModelAsync(filters, pageSize: 12, cancellationToken);
+        return View(filters);
+    }
+
+    private async Task PopulateAuctionIndexModelAsync(AuctionIndexViewModel filters, int pageSize, CancellationToken cancellationToken)
     {
         var search = new AuctionSearchDto
         {
@@ -44,7 +63,8 @@ public class AuctionsController(
             MinPrice = filters.MinPrice,
             MaxPrice = filters.MaxPrice,
             SortBy = filters.SortBy,
-            Page = filters.Page
+            Page = filters.Page,
+            PageSize = pageSize
         };
 
         var result = await auctionService.SearchAuctionsAsync(search, cancellationToken);
@@ -52,6 +72,21 @@ public class AuctionsController(
         filters.TotalCount = result.TotalCount;
         filters.TotalPages = result.TotalPages;
         filters.Page = result.Page;
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var favoriteIds = new HashSet<int>();
+            foreach (var auction in filters.Auctions)
+            {
+                if (await favoriteService.IsFavoriteAsync(userId, auction.Id, cancellationToken))
+                {
+                    favoriteIds.Add(auction.Id);
+                }
+            }
+
+            filters.FavoriteAuctionIds = favoriteIds;
+        }
+
         filters.Brands = (await referenceData.GetBrandsAsync(cancellationToken))
             .Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == filters.BrandId))
             .Prepend(new SelectListItem("Alege marca", string.Empty))
@@ -68,8 +103,6 @@ public class AuctionsController(
         filters.TransmissionTypes = await BuildFilterOptionsAsync(AttributeOptionType.TransmissionType, "Transmisie", filters.TransmissionTypeId, cancellationToken);
         filters.BodyTypes = await BuildFilterOptionsAsync(AttributeOptionType.BodyType, "Caroserie", filters.BodyTypeId, cancellationToken);
         filters.Conditions = await BuildFilterOptionsAsync(AttributeOptionType.Condition, "Stare", filters.ConditionId, cancellationToken);
-
-        return View(filters);
     }
 
     public async Task<IActionResult> Details(int id, CancellationToken cancellationToken)
@@ -84,7 +117,46 @@ public class AuctionsController(
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
             ViewBag.IsFavorite = await favoriteService.IsFavoriteAsync(userId, id, cancellationToken);
+            if (User.IsInRole(AppRoles.Buyer))
+            {
+                ViewBag.AutoBidMaxAmount = await auctionService.GetAutoBidMaxAmountAsync(id, userId, cancellationToken);
+                ViewBag.BidCooldownUntil = await auctionService.GetBidCooldownUntilAsync(id, userId, cancellationToken);
+                ViewBag.IsHighestBidder = auction.Bids
+                    .OrderByDescending(x => x.Amount)
+                    .FirstOrDefault()?.BidderId == userId;
+            }
         }
+
+        var seller = await userManager.FindByIdAsync(auction.SellerId);
+        if (seller is not null)
+        {
+            var dealerProfile = await db.DealerProfiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.UserId == seller.Id, cancellationToken);
+            var fallbackName = $"{seller.FirstName} {seller.LastName}".Trim();
+            ViewBag.SellerSummary = new SellerReviewSummaryViewModel
+            {
+                SellerId = seller.Id,
+                CompanyName = !string.IsNullOrWhiteSpace(dealerProfile?.CompanyName)
+                    ? dealerProfile.CompanyName
+                    : string.IsNullOrWhiteSpace(fallbackName) ? seller.Email ?? "Vanzator" : fallbackName,
+                Email = seller.Email ?? string.Empty,
+                RatingAverage = seller.RatingAverage,
+                RatingCount = seller.RatingCount
+            };
+        }
+
+        if (auction.Status == AuctionStatus.Ended && !string.IsNullOrWhiteSpace(auction.WinningBid?.BidderId))
+        {
+            var winner = await userManager.FindByIdAsync(auction.WinningBid.BidderId);
+            if (winner is not null)
+            {
+                ViewBag.WinnerFullName = $"{winner.FirstName} {winner.LastName}".Trim();
+                ViewBag.WinnerEmail = winner.Email;
+            }
+        }
+
+        ViewBag.SimilarAuctions = await auctionService.GetSimilarAuctionsAsync(auction, cancellationToken: cancellationToken);
 
         return View(auction);
     }
@@ -134,7 +206,7 @@ public class AuctionsController(
 
         if (auction.Status is AutoAuction.Domain.Enums.AuctionStatus.Ended or AutoAuction.Domain.Enums.AuctionStatus.Unsold or AutoAuction.Domain.Enums.AuctionStatus.Cancelled)
         {
-            TempData["Error"] = "Licitatia finalizata sau anulata nu mai poate fi editata.";
+            TempData["Error"] = "Licitația finalizată sau anulată nu mai poate fi editată.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
@@ -157,8 +229,8 @@ public class AuctionsController(
             ColorId = auction.ColorId,
             StartingPrice = auction.StartingPrice,
             MinimumBidIncrement = auction.MinimumBidIncrement,
-            StartTime = auction.StartTime.ToLocalTime(),
-            EndTime = auction.EndTime.ToLocalTime(),
+            StartTime = DateTimeDisplay.ToLocal(auction.StartTime),
+            EndTime = DateTimeDisplay.ToLocal(auction.EndTime),
             OverallGrade = auction.ConditionReport?.OverallGrade ?? "B",
             ExteriorCondition = auction.ConditionReport?.ExteriorCondition ?? string.Empty,
             InteriorCondition = auction.ConditionReport?.InteriorCondition ?? string.Empty,
@@ -189,17 +261,30 @@ public class AuctionsController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, AuctionFormViewModel model, CancellationToken cancellationToken)
     {
-        if (model.EndTime <= model.StartTime)
+        var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var existingAuction = await auctionService.GetDetailsAsync(id, cancellationToken);
+        if (existingAuction is null || existingAuction.SellerId != sellerId)
         {
-            ModelState.AddModelError(nameof(model.EndTime), "Data de final trebuie sa fie dupa data de start.");
+            return NotFound();
         }
+
+        model.HasBids = existingAuction.Bids.Count > 0;
+        model.ExistingImages = existingAuction.Images
+            .OrderBy(x => x.SortOrder)
+            .Select(x => new AuctionImageViewModel
+            {
+                Id = x.Id,
+                FileName = x.FileName,
+                FilePath = x.FilePath,
+                IsMainImage = x.IsMainImage
+            })
+            .ToList();
 
         if (!ModelState.IsValid)
         {
             return View(await BuildFormModelAsync(model, cancellationToken));
         }
 
-        var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var dto = MapToDto(model);
         var updated = await auctionService.UpdateAsync(id, sellerId, dto, cancellationToken);
         if (!updated)
@@ -254,11 +339,6 @@ public class AuctionsController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(AuctionFormViewModel model, CancellationToken cancellationToken)
     {
-        if (model.EndTime <= model.StartTime)
-        {
-            ModelState.AddModelError(nameof(model.EndTime), "Data de final trebuie sa fie dupa data de start.");
-        }
-
         if (!ModelState.IsValid)
         {
             return View(await BuildFormModelAsync(model, cancellationToken));
@@ -286,12 +366,15 @@ public class AuctionsController(
         var result = await auctionService.PlaceBidAsync(id, bidderId, amount, cancellationToken);
         if (result.Succeeded)
         {
-            await hubContext.Clients.Group(AuctionHub.AuctionGroup(id))
-                .SendAsync("BidPlaced", id, result.CurrentPrice, result.BidCreatedAt, cancellationToken);
-
-            if (!string.IsNullOrWhiteSpace(result.OutbidUserId))
+            if (result.BidCreatedAt is not null)
             {
-                await hubContext.Clients.Group(AuctionHub.UserGroup(result.OutbidUserId))
+                await hubContext.Clients.Group(AuctionHub.AuctionGroup(id))
+                    .SendAsync("BidPlaced", id, result.CurrentPrice, result.BidCreatedAt, cancellationToken);
+            }
+
+            foreach (var outbidUserId in result.OutbidUserIds)
+            {
+                await hubContext.Clients.Group(AuctionHub.UserGroup(outbidUserId))
                     .SendAsync("Outbid", id, result.CurrentPrice, cancellationToken);
             }
 
@@ -301,6 +384,65 @@ public class AuctionsController(
         {
             TempData["Error"] = result.Message;
         }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Buyer)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AutoBid(int id, decimal maxAmount, CancellationToken cancellationToken)
+    {
+        var bidderId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var result = await auctionService.ConfigureAutoBidAsync(id, bidderId, maxAmount, cancellationToken);
+        if (result.Succeeded)
+        {
+            if (result.BidCreatedAt is not null)
+            {
+                await hubContext.Clients.Group(AuctionHub.AuctionGroup(id))
+                    .SendAsync("BidPlaced", id, result.CurrentPrice, result.BidCreatedAt, cancellationToken);
+            }
+
+            foreach (var outbidUserId in result.OutbidUserIds)
+            {
+                await hubContext.Clients.Group(AuctionHub.UserGroup(outbidUserId))
+                    .SendAsync("Outbid", id, result.CurrentPrice, cancellationToken);
+            }
+
+            TempData["Success"] = "Autobid-ul a fost setat.";
+        }
+        else
+        {
+            TempData["Error"] = result.Message;
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Buyer)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> StopAutoBid(int id, CancellationToken cancellationToken)
+    {
+        var bidderId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var disabled = await auctionService.DisableAutoBidAsync(id, bidderId, cancellationToken);
+        TempData[disabled ? "Success" : "Error"] = disabled
+            ? "Autobid-ul a fost oprit."
+            : "Nu exista un autobid activ pentru aceasta licitatie.";
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForceClose(int id, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var closed = await auctionService.ForceCloseAuctionAsync(id, userId, User.IsInRole(AppRoles.Administrator), cancellationToken);
+        TempData[closed ? "Success" : "Error"] = closed
+            ? "Licitatia a fost oprita fortat."
+            : "Nu poti opri fortat aceasta licitatie.";
 
         return RedirectToAction(nameof(Details), new { id });
     }

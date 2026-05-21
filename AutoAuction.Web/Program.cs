@@ -1,6 +1,7 @@
 using AutoAuction.Infrastructure;
 using AutoAuction.Infrastructure.Data;
 using AutoAuction.Web.Hubs;
+using AutoAuction.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
+builder.Services.AddHostedService<AutoBidProcessingService>();
 
 var app = builder.Build();
 
@@ -29,7 +31,7 @@ app.MapStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Auctions}/{action=Index}/{id?}")
+    pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
 
 app.MapHub<AuctionHub>("/auctionHub");

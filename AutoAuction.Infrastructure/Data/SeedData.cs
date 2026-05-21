@@ -74,20 +74,7 @@ public static class SeedData
             await userManager.AddToRoleAsync(buyer, AppRoles.Buyer);
         }
 
-        if (!await db.Brands.AnyAsync())
-        {
-            var bmw = new Brand { Name = "BMW" };
-            var audi = new Brand { Name = "Audi" };
-            var vw = new Brand { Name = "Volkswagen" };
-            db.Brands.AddRange(bmw, audi, vw);
-            db.CarModels.AddRange(
-                new CarModel { Brand = bmw, Name = "Seria 3" },
-                new CarModel { Brand = bmw, Name = "X5" },
-                new CarModel { Brand = audi, Name = "A4" },
-                new CarModel { Brand = audi, Name = "Q5" },
-                new CarModel { Brand = vw, Name = "Golf" },
-                new CarModel { Brand = vw, Name = "Passat" });
-        }
+        await SeedBrandsAndModelsAsync(db);
 
         if (!await db.CarAttributeOptions.AnyAsync())
         {
@@ -105,6 +92,8 @@ public static class SeedData
         {
             await SeedDemoAuctionsAsync(db, seller.Id);
         }
+
+        await SeedDemoReviewsAsync(db, userManager, seller.Id);
     }
 
     private static void AddOptions(ApplicationDbContext db, AttributeOptionType type, params string[] names)
@@ -117,6 +106,68 @@ public static class SeedData
                 Name = names[i],
                 SortOrder = i + 1
             });
+        }
+    }
+
+    private static async Task SeedBrandsAndModelsAsync(ApplicationDbContext db)
+    {
+        var brandModels = new Dictionary<string, string[]>
+        {
+            ["Audi"] = ["A3", "A4", "A5", "A6", "A7", "A8", "Q3", "Q5", "Q7", "Q8", "e-tron"],
+            ["BMW"] = ["Seria 1", "Seria 3", "Seria 5", "Seria 7", "X1", "X3", "X5", "X6", "i3", "i4", "iX"],
+            ["Volkswagen"] = ["Golf", "Passat", "Polo", "Tiguan", "Touareg", "Arteon", "T-Roc", "ID.3", "ID.4"],
+            ["Mercedes-Benz"] = ["A-Class", "C-Class", "E-Class", "S-Class", "CLA", "GLA", "GLC", "GLE", "GLS", "EQC"],
+            ["Skoda"] = ["Fabia", "Octavia", "Superb", "Scala", "Kamiq", "Karoq", "Kodiaq", "Enyaq"],
+            ["Renault"] = ["Clio", "Megane", "Talisman", "Captur", "Kadjar", "Austral", "Arkana", "Zoe"],
+            ["Ford"] = ["Fiesta", "Focus", "Mondeo", "Kuga", "Puma", "Mustang", "Explorer", "Ranger"],
+            ["Toyota"] = ["Yaris", "Corolla", "Camry", "C-HR", "RAV4", "Highlander", "Prius", "Land Cruiser"],
+            ["Hyundai"] = ["i10", "i20", "i30", "Elantra", "Tucson", "Santa Fe", "Kona", "Ioniq 5"],
+            ["Kia"] = ["Rio", "Ceed", "ProCeed", "Sportage", "Sorento", "Stonic", "Niro", "EV6"],
+            ["Dacia"] = ["Logan", "Sandero", "Duster", "Jogger", "Spring"],
+            ["Peugeot"] = ["208", "308", "508", "2008", "3008", "5008", "Rifter"],
+            ["Opel"] = ["Corsa", "Astra", "Insignia", "Mokka", "Crossland", "Grandland", "Zafira"],
+            ["Seat"] = ["Ibiza", "Leon", "Arona", "Ateca", "Tarraco"],
+            ["Volvo"] = ["S60", "S90", "V60", "V90", "XC40", "XC60", "XC90"],
+            ["Nissan"] = ["Micra", "Juke", "Qashqai", "X-Trail", "Leaf", "Navara"],
+            ["Mazda"] = ["Mazda2", "Mazda3", "Mazda6", "CX-3", "CX-30", "CX-5", "MX-5"],
+            ["Honda"] = ["Jazz", "Civic", "Accord", "HR-V", "CR-V", "e"],
+            ["Fiat"] = ["500", "Panda", "Tipo", "Punto", "500X", "Doblo"],
+            ["Tesla"] = ["Model 3", "Model S", "Model X", "Model Y"],
+            ["Porsche"] = ["911", "Cayenne", "Macan", "Panamera", "Taycan"],
+            ["Land Rover"] = ["Range Rover", "Range Rover Sport", "Evoque", "Discovery", "Defender"],
+            ["Jeep"] = ["Renegade", "Compass", "Cherokee", "Grand Cherokee", "Wrangler"],
+            ["Citroen"] = ["C3", "C4", "C5 Aircross", "Berlingo", "DS3"],
+            ["Alfa Romeo"] = ["Giulia", "Stelvio", "Tonale", "Giulietta"],
+            ["Mitsubishi"] = ["Space Star", "ASX", "Eclipse Cross", "Outlander", "L200"],
+            ["Subaru"] = ["Impreza", "Legacy", "Forester", "Outback", "XV", "BRZ"],
+            ["Suzuki"] = ["Swift", "Vitara", "S-Cross", "Ignis", "Jimny"],
+            ["Mini"] = ["Cooper", "Clubman", "Countryman", "Paceman"],
+            ["Lexus"] = ["CT", "IS", "ES", "NX", "RX", "UX", "LS"]
+        };
+
+        foreach (var (brandName, modelNames) in brandModels)
+        {
+            var brand = await db.Brands.FirstOrDefaultAsync(x => x.Name == brandName);
+            if (brand is null)
+            {
+                brand = new Brand { Name = brandName };
+                db.Brands.Add(brand);
+                await db.SaveChangesAsync();
+            }
+
+            var existingModels = await db.CarModels
+                .Where(x => x.BrandId == brand.Id)
+                .Select(x => x.Name)
+                .ToListAsync();
+            var existingSet = existingModels.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var modelName in modelNames)
+            {
+                if (!existingSet.Contains(modelName))
+                {
+                    db.CarModels.Add(new CarModel { BrandId = brand.Id, Name = modelName });
+                }
+            }
         }
     }
 
@@ -216,5 +267,80 @@ public static class SeedData
     private static Task<CarAttributeOption> OptionAsync(ApplicationDbContext db, AttributeOptionType type, string name)
     {
         return db.CarAttributeOptions.FirstAsync(x => x.Type == type && x.Name == name);
+    }
+
+    private static async Task SeedDemoReviewsAsync(ApplicationDbContext db, UserManager<ApplicationUser> userManager, string sellerId)
+    {
+        if (await db.Reviews.AnyAsync(x => x.SellerId == sellerId))
+        {
+            return;
+        }
+
+        var reviewers = new[]
+        {
+            new { Email = "buyer.review1@autoauction.local", FirstName = "Andrei", LastName = "Popescu" },
+            new { Email = "buyer.review2@autoauction.local", FirstName = "Mihai", LastName = "Ionescu" },
+            new { Email = "buyer.review3@autoauction.local", FirstName = "Elena", LastName = "Marin" },
+            new { Email = "buyer.review4@autoauction.local", FirstName = "Radu", LastName = "Stan" }
+        };
+
+        var reviewerUsers = new List<ApplicationUser>();
+        foreach (var reviewer in reviewers)
+        {
+            var user = await userManager.FindByEmailAsync(reviewer.Email);
+            if (user is null)
+            {
+                user = new ApplicationUser
+                {
+                    UserName = reviewer.Email,
+                    Email = reviewer.Email,
+                    EmailConfirmed = true,
+                    FirstName = reviewer.FirstName,
+                    LastName = reviewer.LastName
+                };
+
+                await userManager.CreateAsync(user, "Buyer123!");
+                await userManager.AddToRoleAsync(user, AppRoles.Buyer);
+            }
+
+            reviewerUsers.Add(user);
+        }
+
+        var sellerAuctions = await db.Auctions
+            .Where(x => x.SellerId == sellerId)
+            .OrderBy(x => x.Id)
+            .Take(4)
+            .ToListAsync();
+
+        var reviews = new[]
+        {
+            new { Rating = 5, Comment = "Comunicare foarte buna si descriere corecta a masinii." },
+            new { Rating = 4, Comment = "Proces rapid, documentele au fost pregatite la timp." },
+            new { Rating = 5, Comment = "Vanzator serios, masina a corespuns pozelor si raportului." },
+            new { Rating = 4, Comment = "Experienta buna per total, raspuns prompt la intrebari." }
+        };
+
+        for (var i = 0; i < reviews.Length; i++)
+        {
+            db.Reviews.Add(new Review
+            {
+                SellerId = sellerId,
+                BuyerId = reviewerUsers[i].Id,
+                AuctionId = sellerAuctions.Count > 0 ? sellerAuctions[i % sellerAuctions.Count].Id : null,
+                Rating = reviews[i].Rating,
+                Comment = reviews[i].Comment,
+                CreatedAt = DateTime.UtcNow.AddDays(-(reviews.Length - i))
+            });
+        }
+
+        var seller = await userManager.FindByIdAsync(sellerId);
+        if (seller is not null)
+        {
+            seller.RatingCount = reviews.Length;
+            seller.RatingAverage = Math.Round((decimal)reviews.Average(x => x.Rating), 1);
+            await userManager.UpdateAsync(seller);
+        }
+
+        await db.SaveChangesAsync();
     }
 }

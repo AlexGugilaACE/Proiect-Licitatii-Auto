@@ -1,4 +1,5 @@
 using AutoAuction.Domain.Entities;
+using AutoAuction.Domain.Enums;
 using AutoAuction.Infrastructure.Identity;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
@@ -29,6 +30,21 @@ public class AdminUsersViewModel
 {
     public IReadOnlyList<AdminUserListItemViewModel> Users { get; set; } = [];
     public IReadOnlyList<SelectListItem> RoleItems { get; set; } = [];
+    public string? Query { get; set; }
+    public int Page { get; set; } = 1;
+    public int TotalPages { get; set; } = 1;
+    public int TotalCount { get; set; }
+}
+
+public class AdminAuctionsViewModel
+{
+    public IReadOnlyList<Auction> Auctions { get; set; } = [];
+    public string? Query { get; set; }
+    public AuctionStatus? Status { get; set; }
+    public IReadOnlyList<SelectListItem> StatusItems { get; set; } = [];
+    public int Page { get; set; } = 1;
+    public int TotalPages { get; set; } = 1;
+    public int TotalCount { get; set; }
 }
 
 public class ChangeUserRoleViewModel

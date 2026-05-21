@@ -11,6 +11,7 @@ public class FavoritesController(IFavoriteService favoriteService) : Controller
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        await favoriteService.CleanupInactiveFavoritesAsync(userId, cancellationToken);
         var favorites = await favoriteService.GetUserFavoritesAsync(userId, cancellationToken);
         return View(favorites);
     }
@@ -21,6 +22,12 @@ public class FavoritesController(IFavoriteService favoriteService) : Controller
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         await favoriteService.ToggleAsync(userId, auctionId, cancellationToken);
+        var isFavorite = await favoriteService.IsFavoriteAsync(userId, auctionId, cancellationToken);
+
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+        {
+            return Json(new { isFavorite });
+        }
 
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
         {

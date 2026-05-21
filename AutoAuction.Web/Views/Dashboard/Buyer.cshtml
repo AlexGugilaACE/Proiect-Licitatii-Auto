@@ -1,69 +1,142 @@
 @model AutoAuction.Web.Models.BuyerDashboardViewModel
 
 @{
-    ViewData["Title"] = "Dashboard cumpărător";
+    ViewData["Title"] = "Dashboard cumparator";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3">Dashboard cumpărător</h1>
-    <a class="btn btn-primary" asp-controller="Auctions" asp-action="Index">Vezi licitații</a>
-</div>
+<section class="dashboard-page">
+    <div class="dashboard-header">
+        <div>
+            <h1>Dashboard cumparator</h1>
+            <p>Urmareste licitatiile la care ai participat si anunturile favorite.</p>
+        </div>
+        <div class="dashboard-actions">
+            <a class="btn btn-primary" asp-controller="Auctions" asp-action="Index">Vezi licitatii</a>
+            <a class="btn btn-outline-primary" asp-controller="Favorites" asp-action="Index">Favorite</a>
+        </div>
+    </div>
 
-<div class="row g-3 mb-4">
-    <div class="col-md-4"><div class="card"><div class="card-body"><div class="text-muted">Bid-uri</div><div class="fs-4">@Model.BidCount</div></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-body"><div class="text-muted">Favorite</div><div class="fs-4">@Model.FavoriteCount</div></div></div></div>
-    <div class="col-md-4"><div class="card"><div class="card-body"><div class="text-muted">Câștigate</div><div class="fs-4">@Model.WonTransactionCount</div></div></div></div>
-</div>
+    <div class="dashboard-stats">
+        <div class="dashboard-stat">
+            <span>Bid-uri</span>
+            <strong>@Model.BidCount</strong>
+        </div>
+        <div class="dashboard-stat">
+            <span>Favorite</span>
+            <strong>@Model.FavoriteCount</strong>
+        </div>
+        <div class="dashboard-stat">
+            <span>Castigate</span>
+            <strong>@Model.WonTransactionCount</strong>
+        </div>
+    </div>
 
-<h2 class="h5">Licitații la care ai participat</h2>
-<table class="table table-striped align-middle">
-    <thead>
-        <tr>
-            <th>Licitație</th>
-            <th>Mașină</th>
-            <th>Oferta ta maximă</th>
-            <th>Preț curent</th>
-            <th>Bid-uri</th>
-            <th>Ultimul bid</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var auction in Model.RecentBidAuctions)
-        {
-            <tr>
-                <td>@auction.AuctionTitle</td>
-                <td>@auction.VehicleName</td>
-                <td>@auction.HighestOwnBid.ToString("N2") EUR</td>
-                <td>@auction.CurrentPrice.ToString("N2") EUR</td>
-                <td>@auction.OwnBidCount</td>
-                <td>@auction.LastBidAt.ToLocalTime().ToString("g")</td>
-                <td class="d-flex gap-2">
-                    <a class="btn btn-sm btn-outline-secondary" asp-controller="Auctions" asp-action="Bids" asp-route-id="@auction.AuctionId">Bid-uri</a>
-                    <a class="btn btn-sm btn-outline-primary" asp-controller="Auctions" asp-action="Details" asp-route-id="@auction.AuctionId">Detalii licitație</a>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+    <div class="dashboard-grid">
+        <section class="dashboard-panel">
+            <div class="dashboard-panel__header">
+                <h2>Licitatii la care ai participat</h2>
+                <a asp-controller="Auctions" asp-action="Index">Cauta licitatii</a>
+            </div>
 
-<h2 class="h5 mt-4">Favorite recente</h2>
-<table class="table table-striped align-middle">
-    <thead>
-        <tr>
-            <th>Licitație</th>
-            <th>Preț curent</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var favorite in Model.Favorites)
-        {
-            <tr>
-                <td>@favorite.Auction?.Title</td>
-                <td>@favorite.Auction?.CurrentPrice.ToString("N2") EUR</td>
-                <td><a asp-controller="Auctions" asp-action="Details" asp-route-id="@favorite.AuctionId">Detalii</a></td>
-            </tr>
-        }
-    </tbody>
-</table>
+            <div class="dashboard-list">
+                @foreach (var auction in Model.RecentBidAuctions)
+                {
+                    <article class="dashboard-list-item dashboard-list-item--with-thumb clickable-card" data-card-url="@Url.Action("Details", "Auctions", new { id = auction.AuctionId })">
+                        <div class="dashboard-thumb">
+                            @if (!string.IsNullOrWhiteSpace(auction.ImagePath))
+                            {
+                                <img src="@auction.ImagePath" alt="@auction.AuctionTitle" />
+                            }
+                            else
+                            {
+                                <span>@auction.VehicleName</span>
+                            }
+                        </div>
+                        <div>
+                            <h3>@auction.AuctionTitle</h3>
+                            <p>@auction.VehicleName · @auction.OwnBidCount bid-uri · ultimul bid @auction.LastBidAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+                        </div>
+                        <div class="dashboard-list-item__side">
+                            <strong>@auction.CurrentPrice.ToString("N0") EUR</strong>
+                            <span>Oferta ta: @auction.HighestOwnBid.ToString("N0") EUR</span>
+                            <div class="dashboard-inline-actions">
+                                <a asp-controller="Auctions" asp-action="Bids" asp-route-id="@auction.AuctionId">Bid-uri</a>
+                                <a asp-controller="Auctions" asp-action="Details" asp-route-id="@auction.AuctionId">Detalii</a>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+
+        <section class="dashboard-panel">
+            <div class="dashboard-panel__header">
+                <h2>Favorite recente</h2>
+                <a asp-controller="Favorites" asp-action="Index">Vezi toate</a>
+            </div>
+
+            <div class="dashboard-list">
+                @foreach (var favorite in Model.Favorites)
+                {
+                    var mainImage = favorite.Auction?.Images.OrderByDescending(x => x.IsMainImage).ThenBy(x => x.SortOrder).FirstOrDefault();
+
+                    <article class="dashboard-list-item dashboard-list-item--compact dashboard-list-item--with-thumb clickable-card" data-card-url="@Url.Action("Details", "Auctions", new { id = favorite.AuctionId })">
+                        <div class="dashboard-thumb">
+                            @if (mainImage is not null)
+                            {
+                                <img src="@mainImage.FilePath" alt="@favorite.Auction?.Title" />
+                            }
+                            else
+                            {
+                                <span>@favorite.Auction?.Brand?.Name</span>
+                            }
+                        </div>
+                        <div>
+                            <h3>@favorite.Auction?.Title</h3>
+                            <p>@favorite.Auction?.Brand?.Name @favorite.Auction?.CarModel?.Name</p>
+                        </div>
+                        <div class="dashboard-list-item__side">
+                            <strong>@favorite.Auction?.CurrentPrice.ToString("N0") EUR</strong>
+                            <a asp-controller="Auctions" asp-action="Details" asp-route-id="@favorite.AuctionId">Detalii</a>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+    </div>
+
+    <section class="dashboard-panel">
+        <div class="dashboard-panel__header">
+            <h2>Tranzactii recente</h2>
+            <a asp-controller="Transactions" asp-action="Index">Vezi toate</a>
+        </div>
+
+        <div class="dashboard-list">
+            @foreach (var transaction in Model.RecentTransactions)
+            {
+                var mainImage = transaction.Auction?.Images.OrderByDescending(x => x.IsMainImage).ThenBy(x => x.SortOrder).FirstOrDefault();
+
+                <article class="dashboard-list-item dashboard-list-item--with-thumb clickable-card" data-card-url="@Url.Action("Details", "Transactions", new { id = transaction.Id })">
+                    <div class="dashboard-thumb">
+                        @if (mainImage is not null)
+                        {
+                            <img src="@mainImage.FilePath" alt="@transaction.Auction?.Title" />
+                        }
+                        else
+                        {
+                            <span>@transaction.Auction?.Title</span>
+                        }
+                    </div>
+                    <div>
+                        <h3>@transaction.Auction?.Title</h3>
+                        <p>Status: @transaction.Status</p>
+                    </div>
+                    <div class="dashboard-list-item__side">
+                        <strong>@transaction.Amount.ToString("N0") EUR</strong>
+                        <a asp-controller="Transactions" asp-action="Details" asp-route-id="@transaction.Id">Detalii</a>
+                    </div>
+                </article>
+            }
+        </div>
+    </section>
+</section>

@@ -27,6 +27,7 @@ public class BuyerBidAuctionViewModel
     public int AuctionId { get; set; }
     public string AuctionTitle { get; set; } = string.Empty;
     public string VehicleName { get; set; } = string.Empty;
+    public string? ImagePath { get; set; }
     public decimal CurrentPrice { get; set; }
     public decimal HighestOwnBid { get; set; }
     public int OwnBidCount { get; set; }

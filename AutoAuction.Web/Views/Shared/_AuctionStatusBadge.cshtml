@@ -1,0 +1,17 @@
+@model AutoAuction.Domain.Enums.AuctionStatus
+@using AutoAuction.Domain.Enums
+
+@{
+    var (label, modifier) = Model switch
+    {
+        AuctionStatus.Draft => ("Draft", "draft"),
+        AuctionStatus.Scheduled => ("Programata", "scheduled"),
+        AuctionStatus.Active => ("Activa", "active"),
+        AuctionStatus.Ended => ("Incheiata", "ended"),
+        AuctionStatus.Unsold => ("Nevanduta", "unsold"),
+        AuctionStatus.Cancelled => ("Anulata", "cancelled"),
+        _ => (Model.ToString(), "draft")
+    };
+}
+
+<span class="auction-status-badge auction-status-badge--@modifier">@label</span>

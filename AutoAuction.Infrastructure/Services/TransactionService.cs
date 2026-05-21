@@ -14,6 +14,8 @@ public class TransactionService(ApplicationDbContext db) : ITransactionService
                 .ThenInclude(x => x!.Brand)
             .Include(x => x.Auction)
                 .ThenInclude(x => x!.CarModel)
+            .Include(x => x.Auction)
+                .ThenInclude(x => x!.Images)
             .Where(x => x.SellerId == userId || x.BuyerId == userId)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -26,6 +28,8 @@ public class TransactionService(ApplicationDbContext db) : ITransactionService
                 .ThenInclude(x => x!.Brand)
             .Include(x => x.Auction)
                 .ThenInclude(x => x!.CarModel)
+            .Include(x => x.Auction)
+                .ThenInclude(x => x!.Images)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 

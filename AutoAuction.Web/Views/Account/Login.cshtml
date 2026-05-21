@@ -1,28 +1,39 @@
-@model AutoAuction.Web.Models.LoginViewModel
-
 @{
-    ViewData["Title"] = "Login";
+    ViewData["Title"] = "Login/Inregistrare";
 }
 
-<h1 class="h3 mb-3">Login</h1>
+<section class="auth-choice-page">
+    <h1>Inregistrare si Autentificare</h1>
 
-<form asp-action="Login" method="post" class="col-md-5">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div class="mb-3">
-        <label asp-for="Email" class="form-label">Email</label>
-        <input asp-for="Email" class="form-control" />
-    </div>
-    <div class="mb-3">
-        <label asp-for="Password" class="form-label">Parolă</label>
-        <input asp-for="Password" class="form-control" />
-    </div>
-    <div class="form-check mb-3">
-        <input asp-for="RememberMe" class="form-check-input" />
-        <label asp-for="RememberMe" class="form-check-label">Ține-mă minte</label>
-    </div>
-    <button type="submit" class="btn btn-primary">Login</button>
-</form>
+    <div class="auth-choice-grid">
+        <article class="auth-choice-card">
+            <div class="auth-choice-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.31 0-6 2.02-6 4.5V21h12v-2.5c0-2.48-2.69-4.5-6-4.5Z" />
+                </svg>
+            </div>
+            <h2>Cont Individual<br />(Persoana Fizica sau Juridica)</h2>
+            <div class="auth-choice-card__actions">
+                <a class="btn btn-primary" asp-action="LoginForm">Logare cont existent</a>
+                <a class="btn btn-dark" asp-action="Register" asp-route-role="Cumparator">Inregistrare cont individual</a>
+            </div>
+            <p>Acest tip de cont este potrivit pentru utilizatorii care doresc sa cumpere vehicule prin licitatie si sa salveze anunturi favorite.</p>
+            <p>Ai acces la licitatii active, istoric de oferte, favorite, notificari si tranzactii castigate.</p>
+        </article>
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-}
+        <article class="auth-choice-card">
+            <div class="auth-choice-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    <path d="M4 4h8a2 2 0 0 1 2 2v12h-2v-2H6v2H4V4Zm2 2v2h2V6H6Zm4 0v2h2V6h-2ZM6 10v2h2v-2H6Zm4 0v2h2v-2h-2Zm6 1h2.2l2.8 3.4V18h-2a2 2 0 1 1-4 0h-5a2 2 0 1 1-4 0H5v-2h11v-5Zm1.5 1.5V15h2.7l-2.1-2.5h-.6Z" />
+                </svg>
+            </div>
+            <h2>Cont Dealer Auto<br />Profesionist</h2>
+            <div class="auth-choice-card__actions">
+                <a class="btn btn-primary" asp-action="LoginForm">Logare cont existent</a>
+                <a class="btn btn-dark" asp-action="Register" asp-route-role="Vanzator">Inregistrare cont dealer auto</a>
+            </div>
+            <p>Acest cont este conceput pentru vanzatorii care publica vehicule si gestioneaza licitatiile proprii.</p>
+            <p>Poti adauga anunturi, administra poze, urmari oferte, primi notificari si gestiona tranzactii finalizate.</p>
+        </article>
+    </div>
+</section>

@@ -25,7 +25,7 @@
             </div>
             <div class="col-md-4">
                 <div class="text-muted">Status</div>
-                <div class="fs-5">@Model.Status</div>
+                <div class="fs-5">@await Html.PartialAsync("_AuctionStatusBadge", Model.Status)</div>
             </div>
         </div>
     </div>

@@ -8,4 +8,5 @@ public interface INotificationService
     Task<IReadOnlyList<Notification>> GetUserNotificationsAsync(string userId, CancellationToken cancellationToken = default);
     Task<bool> MarkReadAsync(int notificationId, string userId, CancellationToken cancellationToken = default);
     Task MarkAllReadAsync(string userId, CancellationToken cancellationToken = default);
+    Task DeleteReadAsync(string userId, CancellationToken cancellationToken = default);
 }

@@ -40,12 +40,18 @@ public class DashboardController(ApplicationDbContext db) : Controller
             RecentAuctions = await db.Auctions
                 .Include(x => x.Brand)
                 .Include(x => x.CarModel)
+                .Include(x => x.Images)
                 .Where(x => x.SellerId == userId)
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(5)
                 .ToListAsync(cancellationToken),
             RecentTransactions = await db.Transactions
                 .Include(x => x.Auction)
+                    .ThenInclude(x => x!.Images)
+                .Include(x => x.Auction)
+                    .ThenInclude(x => x!.Brand)
+                .Include(x => x.Auction)
+                    .ThenInclude(x => x!.CarModel)
                 .Where(x => x.SellerId == userId)
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(5)
@@ -64,6 +70,8 @@ public class DashboardController(ApplicationDbContext db) : Controller
                 .ThenInclude(x => x!.Brand)
             .Include(x => x.Auction)
                 .ThenInclude(x => x!.CarModel)
+            .Include(x => x.Auction)
+                .ThenInclude(x => x!.Images)
             .Where(x => x.BidderId == userId)
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -85,6 +93,7 @@ public class DashboardController(ApplicationDbContext db) : Controller
                         AuctionId = auction.Id,
                         AuctionTitle = auction.Title,
                         VehicleName = $"{auction.Brand?.Name} {auction.CarModel?.Name}".Trim(),
+                        ImagePath = auction.Images.OrderByDescending(image => image.IsMainImage).ThenBy(image => image.SortOrder).FirstOrDefault()?.FilePath,
                         CurrentPrice = auction.CurrentPrice,
                         HighestOwnBid = group.Max(x => x.Amount),
                         OwnBidCount = group.Count(),
@@ -99,12 +108,19 @@ public class DashboardController(ApplicationDbContext db) : Controller
                     .ThenInclude(x => x!.Brand)
                 .Include(x => x.Auction)
                     .ThenInclude(x => x!.CarModel)
+                .Include(x => x.Auction)
+                    .ThenInclude(x => x!.Images)
                 .Where(x => x.UserId == userId)
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(5)
                 .ToListAsync(cancellationToken),
             RecentTransactions = await db.Transactions
                 .Include(x => x.Auction)
+                    .ThenInclude(x => x!.Images)
+                .Include(x => x.Auction)
+                    .ThenInclude(x => x!.Brand)
+                .Include(x => x.Auction)
+                    .ThenInclude(x => x!.CarModel)
                 .Where(x => x.BuyerId == userId)
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(5)

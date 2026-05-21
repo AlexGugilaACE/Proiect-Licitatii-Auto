@@ -1,10 +1,22 @@
 @model AutoAuction.Domain.Entities.Auction
+@using AutoAuction.Domain.Entities
 @using AutoAuction.Domain.Enums
+@using System.Globalization
 
 @{
     ViewData["Title"] = Model.Title;
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     var isOwnAuction = User.Identity?.IsAuthenticated == true && Model.SellerId == currentUserId;
+    var orderedImages = Model.Images.OrderBy(x => x.SortOrder).ThenBy(x => x.Id).ToList();
+    var similarAuctions = ViewBag.SimilarAuctions as IReadOnlyList<Auction> ?? Array.Empty<Auction>();
+    var showSimilarSliderNav = similarAuctions.Count > 3;
+    var sellerSummary = ViewBag.SellerSummary as SellerReviewSummaryViewModel;
+    var roCulture = CultureInfo.GetCultureInfo("ro-RO");
+    var autoBidMaxAmount = ViewBag.AutoBidMaxAmount as decimal?;
+    var bidCooldownUntil = ViewBag.BidCooldownUntil as DateTime?;
+    var isHighestBidder = (ViewBag.IsHighestBidder as bool?) == true;
+    var canForceCloseAuction = User.Identity?.IsAuthenticated == true &&
+        Model.Status is AuctionStatus.Active or AuctionStatus.Scheduled;
 }
 
 @if (TempData["Success"] is string success)
@@ -16,111 +28,205 @@
     <div class="alert alert-danger">@error</div>
 }
 <div id="outbidAlert" class="alert alert-danger d-none" role="alert">
-    Ai fost depășit. A fost plasată o ofertă mai mare pentru această licitație.
+    Ai fost depasit. A fost plasata o oferta mai mare pentru aceasta licitatie.
 </div>
+<audio id="outbidSound" src="~/sounds/notification.mp3" preload="auto"></audio>
 
 @if (Model.Status == AuctionStatus.Ended)
 {
     <div class="alert alert-success">
-        Licitația s-a încheiat. Preț final: <strong>@Model.CurrentPrice.ToString("N2") EUR</strong>.
-        @if (User.Identity?.IsAuthenticated == true && Model.WinningBid?.BidderId == User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)
+        Licitatia s-a incheiat. Pret final: <strong>@Model.CurrentPrice.ToString("N2") EUR</strong>.
+        @if (User.Identity?.IsAuthenticated == true && Model.WinningBid?.BidderId == currentUserId)
         {
-            <span>Ai câștigat această licitație.</span>
+            <span>Ai castigat aceasta licitatie.</span>
         }
-        else if (User.Identity?.IsAuthenticated == true && Model.SellerId == User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)
+        else if (User.Identity?.IsAuthenticated == true && Model.SellerId == currentUserId)
         {
-            <span>Licitația ta a fost câștigată.</span>
+            <span>Licitatia ta a fost castigata.</span>
         }
     </div>
 }
 else if (Model.Status == AuctionStatus.Unsold)
 {
-    <div class="alert alert-warning">Licitația s-a încheiat fără oferte.</div>
+    <div class="alert alert-warning">Licitatia s-a incheiat fara oferte.</div>
 }
 
 <div class="row g-4">
     <div class="col-lg-8">
         <h1 class="h3">@Model.Title</h1>
-        <p class="text-muted">@Model.Brand?.Name @Model.CarModel?.Name, @Model.Year, @Model.Mileage km</p>
+        <p class="text-muted">@Model.Brand?.Name @Model.CarModel?.Name, @Model.Year, @Model.Mileage.ToString("N0") km</p>
         @if (isOwnAuction)
         {
-            <a class="btn btn-outline-secondary btn-sm mb-3" asp-action="Edit" asp-route-id="@Model.Id">Editează</a>
+            <a class="btn btn-outline-secondary btn-sm mb-3" asp-action="Edit" asp-route-id="@Model.Id">Editeaza</a>
         }
-        @if (Model.Images.Count > 0)
+
+        @if (orderedImages.Count > 0)
         {
-            <div class="row g-2 mb-3">
-                @foreach (var image in Model.Images.OrderBy(x => x.SortOrder))
-                {
-                    <div class="col-6 col-md-4">
-                        <img src="@image.FilePath" alt="@Model.Title" class="img-fluid rounded border" />
+            <div class="auction-gallery mb-3" data-gallery>
+                <div class="auction-gallery__stage">
+                    <img id="auctionGalleryImage" src="@orderedImages[0].FilePath" alt="@Model.Title" />
+                    <button class="auction-gallery__nav auction-gallery__nav--prev" type="button" data-gallery-prev aria-label="Poza anterioara">
+                        <span aria-hidden="true">&#8249;</span>
+                    </button>
+                    <button class="auction-gallery__nav auction-gallery__nav--next" type="button" data-gallery-next aria-label="Poza urmatoare">
+                        <span aria-hidden="true">&#8250;</span>
+                    </button>
+                    <button class="auction-gallery__fullscreen" type="button" data-gallery-fullscreen aria-label="Deschide poza pe tot ecranul">
+                        <span aria-hidden="true"></span>
+                    </button>
+                    <div class="auction-gallery__counter">
+                        <span data-gallery-current>1</span>/@orderedImages.Count
                     </div>
-                }
+                </div>
+
+                <div class="auction-gallery__thumbs" aria-label="Galerie poze">
+                    @for (var i = 0; i < orderedImages.Count; i++)
+                    {
+                        var image = orderedImages[i];
+                        <button class="auction-gallery__thumb @(i == 0 ? "is-active" : string.Empty)" type="button" data-gallery-index="@i" aria-label="Afiseaza poza @(i + 1)">
+                            <img src="@image.FilePath" alt="@Model.Title poza @(i + 1)" />
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <div class="auction-gallery-modal" data-gallery-modal aria-hidden="true">
+                <button class="auction-gallery-modal__close" type="button" data-gallery-modal-close aria-label="Inchide imaginea marita">&times;</button>
+                <div class="auction-gallery-modal__slider" role="dialog" aria-modal="true" aria-label="Galerie imagini marite">
+                    <button class="auction-gallery-modal__nav auction-gallery-modal__nav--prev" type="button" data-gallery-modal-prev aria-label="Poza anterioara">
+                        <span aria-hidden="true">&#8249;</span>
+                    </button>
+                    <div class="auction-gallery-modal__stage">
+                        <img src="@orderedImages[0].FilePath" alt="@Model.Title imagine marita" data-gallery-modal-image />
+                        <div class="auction-gallery-modal__counter">
+                            <span data-gallery-modal-current>1</span>/@orderedImages.Count
+                        </div>
+                    </div>
+                    <button class="auction-gallery-modal__nav auction-gallery-modal__nav--next" type="button" data-gallery-modal-next aria-label="Poza urmatoare">
+                        <span aria-hidden="true">&#8250;</span>
+                    </button>
+
+                    <div class="auction-gallery-modal__thumbs" aria-label="Galerie poze marite">
+                        @for (var i = 0; i < orderedImages.Count; i++)
+                        {
+                            var image = orderedImages[i];
+                            <button class="auction-gallery-modal__thumb @(i == 0 ? "is-active" : string.Empty)" type="button" data-gallery-modal-index="@i" aria-label="Afiseaza poza @(i + 1)">
+                                <img src="@image.FilePath" alt="@Model.Title poza marita @(i + 1)" />
+                            </button>
+                        }
+                    </div>
+                </div>
             </div>
         }
-        <p>@Model.Description</p>
 
-        <h2 class="h5 mt-4">Caracteristici</h2>
-        <dl class="row">
-            <dt class="col-sm-3">VIN</dt>
-            <dd class="col-sm-9">@Model.Vin</dd>
-            <dt class="col-sm-3">Capacitate cilindrica</dt>
-            <dd class="col-sm-9">@Model.EngineCapacityCm3.ToString("N0") cmc</dd>
-            <dt class="col-sm-3">Putere</dt>
-            <dd class="col-sm-9">@Model.HorsePower CP</dd>
-            <dt class="col-sm-3">Combustibil</dt>
-            <dd class="col-sm-9">@Model.FuelType?.Name</dd>
-            <dt class="col-sm-3">Cutie</dt>
-            <dd class="col-sm-9">@Model.TransmissionType?.Name</dd>
-            <dt class="col-sm-3">Caroserie</dt>
-            <dd class="col-sm-9">@Model.BodyType?.Name</dd>
-            <dt class="col-sm-3">Stare</dt>
-            <dd class="col-sm-9">@Model.Condition?.Name</dd>
-            <dt class="col-sm-3">Tracțiune</dt>
-            <dd class="col-sm-9">@Model.DriveType?.Name</dd>
-            <dt class="col-sm-3">Culoare</dt>
-            <dd class="col-sm-9">@Model.Color?.Name</dd>
-        </dl>
+        <section class="auction-detail-section">
+            <div class="auction-detail-section__header">
+                <h2>Descriere</h2>
+            </div>
+            <p class="auction-description">@Model.Description</p>
+        </section>
 
-        <h2 class="h5 mt-4">Raport de condiție</h2>
-        <dl class="row">
-            <dt class="col-sm-3">Scor</dt>
-            <dd class="col-sm-9">@Model.ConditionReport?.OverallGrade</dd>
-            <dt class="col-sm-3">Exterior</dt>
-            <dd class="col-sm-9">@Model.ConditionReport?.ExteriorCondition</dd>
-            <dt class="col-sm-3">Interior</dt>
-            <dd class="col-sm-9">@Model.ConditionReport?.InteriorCondition</dd>
-            <dt class="col-sm-3">Mecanică</dt>
-            <dd class="col-sm-9">@Model.ConditionReport?.MechanicalCondition</dd>
-            <dt class="col-sm-3">Anvelope</dt>
-            <dd class="col-sm-9">@Model.ConditionReport?.TireCondition</dd>
-        </dl>
+        <section class="auction-detail-section">
+            <div class="auction-detail-section__header">
+                <h2>Caracteristici</h2>
+            </div>
+
+            <div class="auction-spec-grid">
+                <div class="auction-spec-item"><span>VIN</span><strong>@Model.Vin</strong></div>
+                <div class="auction-spec-item"><span>Capacitate cilindrica</span><strong>@Model.EngineCapacityCm3.ToString("N0") cmc</strong></div>
+                <div class="auction-spec-item"><span>Putere</span><strong>@Model.HorsePower CP</strong></div>
+                <div class="auction-spec-item"><span>Combustibil</span><strong>@Model.FuelType?.Name</strong></div>
+                <div class="auction-spec-item"><span>Cutie</span><strong>@Model.TransmissionType?.Name</strong></div>
+                <div class="auction-spec-item"><span>Caroserie</span><strong>@Model.BodyType?.Name</strong></div>
+                <div class="auction-spec-item"><span>Stare</span><strong>@Model.Condition?.Name</strong></div>
+                <div class="auction-spec-item"><span>Tractiune</span><strong>@Model.DriveType?.Name</strong></div>
+                <div class="auction-spec-item"><span>Culoare</span><strong>@Model.Color?.Name</strong></div>
+            </div>
+        </section>
+
+        <section class="auction-detail-section">
+            <div class="auction-detail-section__header">
+                <h2>Raport de conditie</h2>
+                <span class="auction-grade">@Model.ConditionReport?.OverallGrade</span>
+            </div>
+
+            <div class="condition-grid">
+                <div class="condition-item"><span>Exterior</span><strong>@Model.ConditionReport?.ExteriorCondition</strong></div>
+                <div class="condition-item"><span>Interior</span><strong>@Model.ConditionReport?.InteriorCondition</strong></div>
+                <div class="condition-item"><span>Mecanica</span><strong>@Model.ConditionReport?.MechanicalCondition</strong></div>
+                <div class="condition-item"><span>Anvelope</span><strong>@Model.ConditionReport?.TireCondition</strong></div>
+            </div>
+        </section>
     </div>
 
     <div class="col-lg-4">
-        <div class="card">
+        <div class="card auction-detail-bid-card">
             <div class="card-body">
-                <span class="badge text-bg-@(Model.Status == AuctionStatus.Active ? "success" : "secondary")">@Model.Status</span>
-                <h2 class="h4 mt-3"><span id="currentPrice">@Model.CurrentPrice.ToString("N2")</span> EUR</h2>
-                <p class="text-muted mb-1">Pas minim bid: @Model.MinimumBidIncrement.ToString("N2") EUR</p>
-                <p class="text-muted mb-1">Final: @Model.EndTime.ToLocalTime().ToString("g")</p>
-                <div id="countdown" class="alert alert-secondary py-2"></div>
-                <div id="auctionEndedAlert" class="alert alert-warning d-none">Licitația s-a încheiat.</div>
-
                 @if (User.Identity?.IsAuthenticated == true)
                 {
-                    <form asp-controller="Favorites" asp-action="Toggle" asp-route-auctionId="@Model.Id" method="post" class="mb-3">
-                        <button class="btn btn-outline-secondary" type="submit">
-                            @((ViewBag.IsFavorite as bool?) == true ? "Elimină din favorite" : "Adaugă la favorite")
+                    var isFavorite = (ViewBag.IsFavorite as bool?) == true;
+                    <form asp-controller="Favorites" asp-action="Toggle" asp-route-auctionId="@Model.Id" method="post" class="auction-detail-favorite">
+                        <button type="submit" class="auction-card__icon-btn auction-card__icon-btn--heart @(isFavorite ? "is-favorite" : string.Empty)" aria-label="@(isFavorite ? "Elimină din favorite" : "Adaugă la favorite")" title="@(isFavorite ? "Elimină din favorite" : "Adaugă la favorite")">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 21s-7-4.43-9.4-8.52C.55 8.98 2.9 5 6.63 5c2.02 0 3.34 1.12 4.08 2.06.32.4.9.4 1.21 0C12.66 6.12 13.98 5 16 5c3.73 0 6.08 3.98 4.03 7.48C17.63 16.57 12 21 12 21Z" />
+                            </svg>
                         </button>
                     </form>
                 }
+                @await Html.PartialAsync("_AuctionStatusBadge", Model.Status)
+                <h2 class="h4 mt-3"><span id="currentPrice">@Model.CurrentPrice.ToString("N2")</span> EUR</h2>
+                @if (User.IsInRole("Cumparator") && Model.Status == AuctionStatus.Active)
+                {
+                    <div id="highestBidderStatus" class="highest-bidder-status @(isHighestBidder ? "is-leading" : string.Empty)">
+                        @(isHighestBidder ? "Esti cel mai mare bidder" : "Nu esti cel mai mare bidder")
+                    </div>
+                }
+                <p class="text-muted mb-1">Pas minim bid: @Model.MinimumBidIncrement.ToString("N2") EUR</p>
+                <p class="text-muted mb-1">Final: @DateTimeDisplay.ToLocal(Model.EndTime).ToString("g")</p>
+                <div id="countdown" class="alert alert-secondary py-2"></div>
+                <div id="auctionEndedAlert" class="alert alert-warning d-none">Licitatia s-a incheiat.</div>
 
                 @if (User.IsInRole("Cumparator") && Model.Status == AuctionStatus.Active)
                 {
-                    <form id="bidForm" asp-action="Bid" asp-route-id="@Model.Id" method="post" class="d-flex gap-2">
-                        <input name="amount" type="number" min="@(Model.CurrentPrice + Model.MinimumBidIncrement)" step="@Model.MinimumBidIncrement" class="form-control" placeholder="Oferta" />
-                        <button class="btn btn-primary" type="submit">Licitează</button>
-                    </form>
+                    <div id="bidForm">
+                        <form asp-action="Bid" asp-route-id="@Model.Id" method="post" class="d-flex gap-2">
+                            <input name="amount" type="number" min="@(Model.CurrentPrice + Model.MinimumBidIncrement)" step="@Model.MinimumBidIncrement" class="form-control" placeholder="Oferta" />
+                            <button class="btn btn-primary" type="submit">Liciteaza</button>
+                        </form>
+
+                        <div id="bidCooldown" class="bid-cooldown d-none" data-cooldown-until="@(bidCooldownUntil is null ? string.Empty : DateTimeDisplay.ToUtcIsoString(bidCooldownUntil.Value))">
+                            <div class="bid-cooldown__circle" aria-label="Cooldown bid">
+                                <span data-cooldown-seconds>5</span>
+                            </div>
+                        </div>
+
+                        <form asp-action="AutoBid" asp-route-id="@Model.Id" method="post" class="autobid-form">
+                            <div class="autobid-form__header">
+                                <strong>Autobid</strong>
+                                <span>Liciteaza automat cu pasul minim pana la pretul maxim ales.</span>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <input name="maxAmount"
+                                       type="number"
+                                       min="@(Model.CurrentPrice + Model.MinimumBidIncrement)"
+                                       step="@Model.MinimumBidIncrement"
+                                       value="@(autoBidMaxAmount?.ToString("0.##", CultureInfo.InvariantCulture))"
+                                       class="form-control"
+                                       placeholder="Pret maxim" />
+                                <button class="btn btn-outline-primary" type="submit">Seteaza</button>
+                            </div>
+                            @if (autoBidMaxAmount is not null)
+                            {
+                                <div class="autobid-form__active">Autobid activ pana la @autoBidMaxAmount.Value.ToString("N2") EUR</div>
+                            }
+                        </form>
+                        @if (autoBidMaxAmount is not null)
+                        {
+                            <form asp-action="StopAutoBid" asp-route-id="@Model.Id" method="post" class="autobid-stop-form">
+                                <button class="btn btn-outline-danger" type="submit">Opreste autobid</button>
+                            </form>
+                        }
+                    </div>
                 }
                 else if (!User.Identity?.IsAuthenticated ?? true)
                 {
@@ -129,27 +235,278 @@ else if (Model.Status == AuctionStatus.Unsold)
             </div>
         </div>
 
+        @if (canForceCloseAuction)
+        {
+            <div class="force-close-card">
+                <form asp-action="ForceClose" asp-route-id="@Model.Id" method="post">
+                    <button class="btn btn-danger" type="submit">Oprește forțat licitația</button>
+                </form>
+                <p>Acest buton este folosit doar pentru verificarea funcționalității.</p>
+            </div>
+        }
+
+        @if (sellerSummary is not null)
+        {
+            var filledStars = (int)Math.Round(sellerSummary.RatingAverage, MidpointRounding.AwayFromZero);
+
+            <a class="seller-rating-card" asp-controller="Reviews" asp-action="Seller" asp-route-id="@sellerSummary.SellerId">
+                <div class="seller-rating-card__header">
+                    <span>Vanzator</span>
+                    <strong>@sellerSummary.CompanyName</strong>
+                </div>
+                <div class="seller-rating-card__body">
+                    <div>
+                        <span>Email</span>
+                        <strong>@sellerSummary.Email</strong>
+                    </div>
+                    <div class="seller-rating-card__rating">
+                        <div class="rating-stars" aria-label="Rating @sellerSummary.RatingAverage.ToString("0.0", roCulture) din 5">
+                            @for (var i = 1; i <= 5; i++)
+                            {
+                                <span class="@(i <= filledStars ? "is-filled" : string.Empty)">&#9733;</span>
+                            }
+                        </div>
+                        <div>
+                            <strong>@sellerSummary.RatingAverage.ToString("0.0", roCulture)</strong>
+                            <span>@sellerSummary.RatingCount review-uri</span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        }
+
+        @if (Model.Status == AuctionStatus.Ended && ViewBag.WinnerFullName is string winnerFullName)
+        {
+            <div class="winner-card">
+                <div class="winner-card__header">
+                    <span>Castigator</span>
+                    <strong>@Model.CurrentPrice.ToString("N2") EUR</strong>
+                </div>
+                <div class="winner-card__body">
+                    <div>
+                        <span>Nume complet</span>
+                        <strong>@winnerFullName</strong>
+                    </div>
+                    <div>
+                        <span>Email</span>
+                        <strong>@ViewBag.WinnerEmail</strong>
+                    </div>
+                </div>
+            </div>
+        }
+
         <h2 class="h5 mt-4">Istoric oferte</h2>
         <ul id="bidHistory" class="list-group">
-            @foreach (var bid in Model.Bids.OrderByDescending(x => x.Amount))
+            @foreach (var bid in Model.Bids.OrderByDescending(x => x.Amount).Take(13))
             {
                 <li class="list-group-item d-flex justify-content-between">
                     <span>@bid.Amount.ToString("N2") EUR</span>
-                    <small>@bid.CreatedAt.ToLocalTime().ToString("g")</small>
+                    <small>@DateTimeDisplay.ToLocal(bid.CreatedAt).ToString("g")</small>
                 </li>
             }
         </ul>
     </div>
 </div>
 
+@if (similarAuctions.Count > 0)
+{
+    <section class="similar-auctions-section">
+        <div class="similar-auctions-section__header">
+            <div>
+                <h2>Anunturi similare</h2>
+                <p>Licitatii apropiate dupa caroserie, marca, combustibil sau cutie de viteze.</p>
+            </div>
+            <a class="auction-card__details" asp-action="Results"
+               asp-route-BrandId="@Model.BrandId"
+               asp-route-BodyTypeId="@Model.BodyTypeId"
+               asp-route-FuelTypeId="@Model.FuelTypeId"
+               asp-route-TransmissionTypeId="@Model.TransmissionTypeId">Vezi rezultate</a>
+        </div>
+
+        <div class="auction-list-slider similar-auctions-slider @(showSimilarSliderNav ? string.Empty : "auction-list-slider--centered")">
+            @if (showSimilarSliderNav)
+            {
+                <button class="auction-list-slider__nav auction-list-slider__nav--prev" type="button" aria-label="Anunturi similare anterioare" data-similar-slider-prev>
+                    <span aria-hidden="true">&#8249;</span>
+                </button>
+            }
+
+            <div class="auction-list-slider__viewport" data-similar-slider>
+                @foreach (var auction in similarAuctions)
+                {
+                    var mainImage = auction.Images.OrderByDescending(x => x.IsMainImage).ThenBy(x => x.SortOrder).FirstOrDefault();
+                    var priceText = auction.CurrentPrice.ToString("N0");
+
+                    <article class="auction-card auction-list-slider__item clickable-card" data-card-url="@Url.Action("Details", "Auctions", new { id = auction.Id })">
+                        <div class="auction-card__media">
+                            @if (mainImage is not null)
+                            {
+                                <img src="@mainImage.FilePath" alt="@auction.Title" />
+                            }
+                            else
+                            {
+                                <div class="auction-card__placeholder">@auction.Brand?.Name @auction.CarModel?.Name</div>
+                            }
+                        </div>
+
+                        <div class="auction-card__body">
+                            <h3 class="auction-card__title">@auction.Title</h3>
+
+                            <div class="auction-card__specs">
+                                <div class="auction-card__spec">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M12 5a9 9 0 0 0-9 9c0 1.66.45 3.22 1.24 4.56h15.52A8.96 8.96 0 0 0 12 5Zm0 2a7 7 0 0 1 6.32 10H5.68A7 7 0 0 1 12 7Zm4.32 3.2-3.34 4.84a1.75 1.75 0 1 1-1.6-1.03l3.34-4.84 1.6 1.03Z" />
+                                    </svg>
+                                    <span>@auction.Mileage.ToString("N0") km</span>
+                                </div>
+                                <div class="auction-card__spec">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M7 3h8a3 3 0 0 1 3 3v15h-2v-5H6v5H4V6a3 3 0 0 1 3-3Zm-1 8h10V6a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v5Zm2 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7.5 0A1.5 1.5 0 1 0 17 14.5 1.5 1.5 0 0 0 15.5 13ZM18 8h2.5a1.5 1.5 0 0 1 1.5 1.5V13h-2V10h-2V8Z" />
+                                    </svg>
+                                    <span>@auction.FuelType?.Name</span>
+                                </div>
+                                <div class="auction-card__spec">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M7 4a2 2 0 1 1-1 3.73V11h5V7.73a2 2 0 1 1 2 0V11h4V7.73a2 2 0 1 1 2 0V13h-6v3.27a2 2 0 1 1-2 0V13H6v3.27a2 2 0 1 1-2 0V7.73A2 2 0 0 1 7 4Z" />
+                                    </svg>
+                                    <span>@auction.TransmissionType?.Name</span>
+                                </div>
+                            </div>
+
+                            <div class="auction-card__footer">
+                                <div class="auction-card__price">@priceText EUR</div>
+                                <a class="auction-card__details" asp-action="Details" asp-route-id="@auction.Id">
+                                    Detalii
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M13.3 5.3 20 12l-6.7 6.7-1.4-1.4 4.3-4.3H4v-2h12.2l-4.3-4.3 1.4-1.4Z" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+
+            @if (showSimilarSliderNav)
+            {
+                <button class="auction-list-slider__nav auction-list-slider__nav--next" type="button" aria-label="Anunturi similare urmatoare" data-similar-slider-next>
+                    <span aria-hidden="true">&#8250;</span>
+                </button>
+            }
+        </div>
+    </section>
+}
+
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
     <script>
+        const galleryImages = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(orderedImages.Select(x => x.FilePath)));
+        const galleryImage = document.getElementById("auctionGalleryImage");
+        const galleryCurrent = document.querySelector("[data-gallery-current]");
+        const galleryThumbs = Array.from(document.querySelectorAll("[data-gallery-index]"));
+        const galleryPrev = document.querySelector("[data-gallery-prev]");
+        const galleryNext = document.querySelector("[data-gallery-next]");
+        const galleryFullscreen = document.querySelector("[data-gallery-fullscreen]");
+        const galleryModal = document.querySelector("[data-gallery-modal]");
+        const galleryModalImage = document.querySelector("[data-gallery-modal-image]");
+        const galleryModalClose = document.querySelector("[data-gallery-modal-close]");
+        const galleryModalCurrent = document.querySelector("[data-gallery-modal-current]");
+        const galleryModalPrev = document.querySelector("[data-gallery-modal-prev]");
+        const galleryModalNext = document.querySelector("[data-gallery-modal-next]");
+        const galleryModalThumbs = Array.from(document.querySelectorAll("[data-gallery-modal-index]"));
+        let galleryIndex = 0;
+
+        function showGalleryImage(index) {
+            if (!galleryImage || galleryImages.length === 0) {
+                return;
+            }
+
+            galleryIndex = (index + galleryImages.length) % galleryImages.length;
+            galleryImage.src = galleryImages[galleryIndex];
+            if (galleryModalImage) {
+                galleryModalImage.src = galleryImages[galleryIndex];
+            }
+            if (galleryCurrent) {
+                galleryCurrent.textContent = String(galleryIndex + 1);
+            }
+            if (galleryModalCurrent) {
+                galleryModalCurrent.textContent = String(galleryIndex + 1);
+            }
+
+            galleryThumbs.forEach((thumb) => {
+                thumb.classList.toggle("is-active", Number(thumb.dataset.galleryIndex) === galleryIndex);
+            });
+            galleryModalThumbs.forEach((thumb) => {
+                thumb.classList.toggle("is-active", Number(thumb.dataset.galleryModalIndex) === galleryIndex);
+            });
+        }
+
+        function closeGalleryModal() {
+            galleryModal?.classList.remove("is-open");
+            galleryModal?.setAttribute("aria-hidden", "true");
+        }
+
+        galleryPrev?.addEventListener("click", () => showGalleryImage(galleryIndex - 1));
+        galleryNext?.addEventListener("click", () => showGalleryImage(galleryIndex + 1));
+        galleryModalPrev?.addEventListener("click", () => showGalleryImage(galleryIndex - 1));
+        galleryModalNext?.addEventListener("click", () => showGalleryImage(galleryIndex + 1));
+        galleryThumbs.forEach((thumb) => {
+            thumb.addEventListener("click", () => showGalleryImage(Number(thumb.dataset.galleryIndex)));
+        });
+        galleryModalThumbs.forEach((thumb) => {
+            thumb.addEventListener("click", () => showGalleryImage(Number(thumb.dataset.galleryModalIndex)));
+        });
+        galleryFullscreen?.addEventListener("click", () => {
+            galleryModal?.classList.add("is-open");
+            galleryModal?.setAttribute("aria-hidden", "false");
+        });
+        galleryModalClose?.addEventListener("click", closeGalleryModal);
+        galleryModal?.addEventListener("click", (event) => {
+            if (event.target === galleryModal) {
+                closeGalleryModal();
+            }
+        });
+        document.addEventListener("keydown", (event) => {
+            if (!galleryModal?.classList.contains("is-open")) {
+                return;
+            }
+
+            if (event.key === "Escape") {
+                closeGalleryModal();
+            } else if (event.key === "ArrowLeft") {
+                showGalleryImage(galleryIndex - 1);
+            } else if (event.key === "ArrowRight") {
+                showGalleryImage(galleryIndex + 1);
+            }
+        });
+
+        const similarSlider = document.querySelector("[data-similar-slider]");
+        const similarSliderPrev = document.querySelector("[data-similar-slider-prev]");
+        const similarSliderNext = document.querySelector("[data-similar-slider-next]");
+
+        function scrollSimilarSlider(direction) {
+            if (!similarSlider) {
+                return;
+            }
+
+            const firstItem = similarSlider.querySelector(".auction-list-slider__item");
+            const scrollAmount = firstItem ? firstItem.getBoundingClientRect().width + 24 : 360;
+            similarSlider.scrollBy({ left: direction * scrollAmount, behavior: "smooth" });
+        }
+
+        similarSliderPrev?.addEventListener("click", () => scrollSimilarSlider(-1));
+        similarSliderNext?.addEventListener("click", () => scrollSimilarSlider(1));
+
         const connection = new signalR.HubConnectionBuilder().withUrl("/auctionHub").build();
-        const endTime = new Date("@Model.EndTime.ToUniversalTime().ToString("O")");
+        const endTime = new Date("@DateTimeDisplay.ToUtcIsoString(Model.EndTime)");
         const countdown = document.getElementById("countdown");
         const endedAlert = document.getElementById("auctionEndedAlert");
         const bidForm = document.getElementById("bidForm");
+        const bidCooldown = document.getElementById("bidCooldown");
+        const cooldownSeconds = document.querySelector("[data-cooldown-seconds]");
+        const bidControls = Array.from(document.querySelectorAll("#bidForm button"));
+        let cooldownUntil = bidCooldown?.dataset.cooldownUntil ? new Date(bidCooldown.dataset.cooldownUntil) : null;
+        const bidCooldownTotalMs = 5000;
 
         function formatMoney(value) {
             return Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -158,7 +515,7 @@ else if (Model.Status == AuctionStatus.Unsold)
         function updateCountdown() {
             const diff = endTime - new Date();
             if (diff <= 0) {
-                countdown.textContent = "Timp rămas: 00:00:00";
+                countdown.textContent = "Timp ramas: 0 minute";
                 countdown.classList.remove("alert-secondary");
                 countdown.classList.add("alert-warning");
                 endedAlert.classList.remove("d-none");
@@ -169,15 +526,66 @@ else if (Model.Status == AuctionStatus.Unsold)
             }
 
             const totalSeconds = Math.floor(diff / 1000);
-            const hours = Math.floor(totalSeconds / 3600);
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
             const minutes = Math.floor((totalSeconds % 3600) / 60);
             const seconds = totalSeconds % 60;
-            countdown.textContent = `Timp rămas: ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+            const parts = [];
+
+            if (days > 0) {
+                parts.push(`${days} ${days === 1 ? "zi" : "zile"}`);
+            }
+
+            if (hours > 0 || days > 0) {
+                parts.push(`${hours} ${hours === 1 ? "ora" : "ore"}`);
+            }
+
+            parts.push(`${minutes} ${minutes === 1 ? "minut" : "minute"}`);
+
+            if (days === 0) {
+                parts.push(`${seconds} ${seconds === 1 ? "secunda" : "secunde"}`);
+            }
+
+            countdown.textContent = `Timp ramas: ${parts.join(", ")}`;
         }
+
+        function updateBidCooldown() {
+            if (!bidCooldown || !cooldownUntil) {
+                return;
+            }
+
+            const remainingMs = cooldownUntil - new Date();
+            if (remainingMs <= 0) {
+                bidCooldown.classList.add("d-none");
+                bidControls.forEach((control) => control.disabled = false);
+                cooldownUntil = null;
+                return;
+            }
+
+            const remainingSeconds = Math.ceil(remainingMs / 1000);
+            const remainingRatio = Math.min(1, Math.max(0, remainingMs / bidCooldownTotalMs));
+            const redDegrees = remainingRatio * 360;
+            bidCooldown.classList.remove("d-none");
+            bidControls.forEach((control) => control.disabled = true);
+            cooldownSeconds.textContent = String(remainingSeconds);
+            bidCooldown.style.setProperty("--cooldown-red-deg", `${redDegrees}deg`);
+        }
+
+        document.querySelectorAll("#bidForm form").forEach((form) => {
+            form.addEventListener("submit", () => {
+                cooldownUntil = new Date(Date.now() + bidCooldownTotalMs);
+                updateBidCooldown();
+            });
+        });
 
         connection.on("BidPlaced", (auctionId, currentPrice, createdAt) => {
             if (auctionId === @Model.Id) {
                 document.getElementById("currentPrice").textContent = formatMoney(currentPrice);
+                const highestBidderStatus = document.getElementById("highestBidderStatus");
+                if (highestBidderStatus) {
+                    highestBidderStatus.textContent = "Oferta s-a actualizat. Verifica daca esti in continuare pe primul loc.";
+                    highestBidderStatus.classList.remove("is-leading");
+                }
                 const history = document.getElementById("bidHistory");
                 const item = document.createElement("li");
                 item.className = "list-group-item d-flex justify-content-between";
@@ -189,12 +597,24 @@ else if (Model.Status == AuctionStatus.Unsold)
         connection.on("Outbid", (auctionId, currentPrice) => {
             if (auctionId === @Model.Id) {
                 const alert = document.getElementById("outbidAlert");
+                const outbidSound = document.getElementById("outbidSound");
                 alert.classList.remove("d-none");
+                const highestBidderStatus = document.getElementById("highestBidderStatus");
+                if (highestBidderStatus) {
+                    highestBidderStatus.textContent = "Nu esti cel mai mare bidder";
+                    highestBidderStatus.classList.remove("is-leading");
+                }
                 document.getElementById("currentPrice").textContent = formatMoney(currentPrice);
+                if (outbidSound) {
+                    outbidSound.currentTime = 0;
+                    outbidSound.play().catch(() => {});
+                }
             }
         });
         connection.start().then(() => connection.invoke("JoinAuction", @Model.Id));
         updateCountdown();
+        updateBidCooldown();
         setInterval(updateCountdown, 1000);
+        setInterval(updateBidCooldown, 100);
     </script>
 }

@@ -1,8 +1,115 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@using AutoAuction.Infrastructure.Identity
+@inject Microsoft.AspNetCore.Identity.UserManager<ApplicationUser> UserManager
+
+@{
+    ViewData["Title"] = "Acasa";
+    var greetingName = User.Identity?.Name ?? string.Empty;
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        var currentUser = await UserManager.GetUserAsync(User);
+        if (currentUser is not null)
+        {
+            greetingName = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
+            if (string.IsNullOrWhiteSpace(greetingName))
+            {
+                greetingName = currentUser.Email ?? User.Identity.Name ?? string.Empty;
+            }
+        }
+    }
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<section class="home-page">
+    <div class="home-hero">
+        <div class="home-hero__content">
+            <span class="home-eyebrow">Platformă licitații auto</span>
+            <h1>AUTOAUCTION</h1>
+            <p>Un sistem simplu pentru publicarea, urmărirea și finalizarea licitațiilor auto între vânzători și cumpărători.</p>
+            <div class="home-hero__actions">
+                <a class="btn btn-primary" asp-controller="Auctions" asp-action="Index">Vezi licitații</a>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <a class="btn btn-outline-primary" asp-controller="Account" asp-action="MyAccount">Salut, @greetingName</a>
+                }
+                else
+                {
+                    <a class="btn btn-outline-primary" asp-controller="Account" asp-action="Login">Login/Înregistrare</a>
+                }
+            </div>
+        </div>
+
+        <div class="home-hero__image">
+            <img src="~/images/hero.png" alt="Mașină prezentată pentru licitații auto" />
+        </div>
+    </div>
+
+    <div class="home-quick-actions">
+        <a asp-controller="Auctions" asp-action="Results">
+            <span>Cauta vehicule</span>
+            <strong>Filtre avansate si sortare</strong>
+        </a>
+        <a asp-controller="Auctions" asp-action="Create">
+            <span>Vinde vehicule</span>
+            <strong>Adaugă rapid o licitație</strong>
+        </a>
+        <a asp-controller="Dashboard" asp-action="Index">
+            <span>Dashboard</span>
+            <strong>Urmareste activitatea contului</strong>
+        </a>
+    </div>
+
+    <div class="home-section-header">
+        <h2>De ce să ne alegi pe noi?</h2>
+    </div>
+
+    <div class="home-benefits">
+        <article>
+            <h3>Licitatii transparente</h3>
+            <p>Ofertele, prețul curent și istoricul bid-urilor sunt ușor de urmărit în pagina fiecărei licitații.</p>
+        </article>
+        <article>
+            <h3>Actualizari live</h3>
+            <p>Cumpărătorii primesc notificări în timp real când sunt depășiți, iar prețul se actualizează automat.</p>
+        </article>
+        <article>
+            <h3>Flux complet</h3>
+            <p>Platforma acoperă publicarea anunțului, licitarea, închiderea licitației și confirmarea tranzacției.</p>
+        </article>
+    </div>
+
+    <div class="home-section-header">
+        <h2>Cum functioneaza</h2>
+    </div>
+
+    <div class="home-steps">
+        <article>
+            <span>01</span>
+            <h3>Vanzatorul publica licitatia</h3>
+            <p>Completează datele mașinii, prețul de pornire, pasul minim de bid și adaugă poze.</p>
+        </article>
+        <article>
+            <span>02</span>
+            <h3>Cumparatorii liciteaza live</h3>
+            <p>Ofertele sunt validate, iar utilizatorii sunt notificati cand sunt depasiti.</p>
+        </article>
+        <article>
+            <span>03</span>
+            <h3>Tranzactia se finalizeaza</h3>
+            <p>Dupa inchidere, castigatorul si vanzatorul pot confirma tranzactia in platforma.</p>
+        </article>
+    </div>
+
+    <div class="home-role-grid">
+        <section>
+            <h2>Pentru cumparatori</h2>
+            <p>Salvează anunțuri favorite, plasează bid-uri, primește notificări și urmărește licitațiile câștigate.</p>
+        </section>
+        <section>
+            <h2>Pentru vanzatori</h2>
+            <p>Administrează licitațiile publicate, editează pozele, vezi ofertele primite și gestionează tranzacțiile.</p>
+        </section>
+        <section>
+            <h2>Pentru administratori</h2>
+            <p>Monitorizează utilizatorii, licitațiile, dropdown-urile și activitatea generală a platformei.</p>
+        </section>
+    </div>
+</section>

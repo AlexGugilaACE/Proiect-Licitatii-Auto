@@ -1,82 +1,112 @@
-@model IReadOnlyList<AutoAuction.Domain.Entities.Notification>
+@model AutoAuction.Web.Models.NotificationsViewModel
+@using AutoAuction.Domain.Enums
 
 @{
     ViewData["Title"] = "Notificari";
-    var unreadCount = Model.Count(x => !x.IsRead);
+
+    string ActiveClass(string filter) => Model.Filter == filter ? "is-active" : string.Empty;
+
+    string BadgeClass(NotificationType type) => type switch
+    {
+        NotificationType.Outbid => "notification-type-badge--danger",
+        NotificationType.AuctionWon => "notification-type-badge--success",
+        NotificationType.AuctionLost => "notification-type-badge--muted",
+        NotificationType.TransactionCreated => "notification-type-badge--info",
+        NotificationType.NewBid => "notification-type-badge--primary",
+        NotificationType.AuctionEnded => "notification-type-badge--dark",
+        _ => "notification-type-badge--dark"
+    };
+
+    string TypeLabel(NotificationType type) => type switch
+    {
+        NotificationType.NewBid => "Bid nou",
+        NotificationType.Outbid => "Depasit",
+        NotificationType.AuctionWon => "Castigata",
+        NotificationType.AuctionLost => "Pierduta",
+        NotificationType.AuctionEnded => "Finalizata",
+        NotificationType.TransactionCreated => "Tranzactie",
+        _ => "Notificare"
+    };
 }
 
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-    <div>
-        <h1 class="h3 mb-1">Notificari</h1>
-        <div class="text-muted">
-            @if (unreadCount == 0)
+<section class="notifications-page">
+    <div class="notifications-header">
+        <div>
+            <h1>Notificari</h1>
+            <p>
+                @if (Model.UnreadCount == 0)
+                {
+                    <span>Nu ai notificari necitite.</span>
+                }
+                else if (Model.UnreadCount == 1)
+                {
+                    <span>Ai o notificare necitita.</span>
+                }
+                else
+                {
+                    <span>Ai @Model.UnreadCount notificari necitite.</span>
+                }
+            </p>
+        </div>
+
+        <div class="notifications-actions">
+            @if (Model.UnreadCount > 0)
             {
-                <span>Nu ai notificari necitite.</span>
+                <form asp-action="MarkAllRead" method="post">
+                    <button class="btn btn-outline-secondary" type="submit">Marchează toate ca citite</button>
+                </form>
             }
-            else if (unreadCount == 1)
+            @if (Model.TotalCount > Model.UnreadCount)
             {
-                <span>Ai o notificare necitita.</span>
-            }
-            else
-            {
-                <span>Ai @unreadCount notificari necitite.</span>
+                <form asp-action="DeleteRead" method="post">
+                    <button class="btn btn-outline-danger" type="submit">Șterge citite</button>
+                </form>
             }
         </div>
     </div>
 
-    @if (unreadCount > 0)
+    <nav class="notifications-tabs" aria-label="Filtre notificari">
+        <a class="@ActiveClass("all")" asp-action="Index" asp-route-filter="all">
+            Toate
+            <span>@Model.TotalCount</span>
+        </a>
+        <a class="@ActiveClass("unread")" asp-action="Index" asp-route-filter="unread">
+            Necitite
+            <span>@Model.UnreadCount</span>
+        </a>
+        <a class="@ActiveClass("auctions")" asp-action="Index" asp-route-filter="auctions">
+            Licitatii
+            <span>@Model.AuctionCount</span>
+        </a>
+        <a class="@ActiveClass("transactions")" asp-action="Index" asp-route-filter="transactions">
+            Tranzactii
+            <span>@Model.TransactionCount</span>
+        </a>
+    </nav>
+
+    @if (Model.Notifications.Count == 0)
     {
-        <form asp-action="MarkAllRead" method="post">
-            <button class="btn btn-outline-secondary" type="submit">Marcheaza toate ca citite</button>
-        </form>
+        <div class="alert alert-info">Nu exista notificari pentru filtrul selectat.</div>
     }
-</div>
-
-@if (Model.Count == 0)
-{
-    <div class="alert alert-info">Nu ai notificari momentan.</div>
-}
-else
-{
-    <div class="list-group shadow-sm">
-        @foreach (var notification in Model)
-        {
-            var itemClass = notification.IsRead ? "bg-white" : "list-group-item-warning";
-            var badgeClass = notification.Type switch
+    else
+    {
+        <div class="notifications-list">
+            @foreach (var notification in Model.Notifications)
             {
-                AutoAuction.Domain.Enums.NotificationType.Outbid => "text-bg-danger",
-                AutoAuction.Domain.Enums.NotificationType.AuctionWon => "text-bg-success",
-                AutoAuction.Domain.Enums.NotificationType.AuctionLost => "text-bg-secondary",
-                AutoAuction.Domain.Enums.NotificationType.TransactionCreated => "text-bg-info",
-                AutoAuction.Domain.Enums.NotificationType.NewBid => "text-bg-primary",
-                _ => "text-bg-dark"
-            };
-            var typeLabel = notification.Type switch
-            {
-                AutoAuction.Domain.Enums.NotificationType.NewBid => "Bid nou",
-                AutoAuction.Domain.Enums.NotificationType.Outbid => "Depasit",
-                AutoAuction.Domain.Enums.NotificationType.AuctionWon => "Castigata",
-                AutoAuction.Domain.Enums.NotificationType.AuctionLost => "Pierduta",
-                AutoAuction.Domain.Enums.NotificationType.AuctionEnded => "Finalizata",
-                AutoAuction.Domain.Enums.NotificationType.TransactionCreated => "Tranzactie",
-                _ => "Notificare"
-            };
-
-            <div class="list-group-item @itemClass">
-                <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
-                    <div>
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <span class="badge @badgeClass">@typeLabel</span>
+                <article class="notification-card @(notification.IsRead ? string.Empty : "is-unread")">
+                    <div class="notification-card__main">
+                        <div class="notification-card__badges">
+                            <span class="notification-type-badge @BadgeClass(notification.Type)">@TypeLabel(notification.Type)</span>
                             @if (!notification.IsRead)
                             {
-                                <span class="badge text-bg-light border">Necitita</span>
+                                <span class="notification-read-badge">Necitita</span>
                             }
                         </div>
-                        <h2 class="h6 mb-1">@notification.Title</h2>
-                        <p class="mb-0">@notification.Message</p>
+                        <h2>@notification.Title</h2>
+                        <p>@notification.Message</p>
                     </div>
-                    <div class="text-md-end flex-shrink-0">
-                        <small class="text-muted d-block mb-2">@notification.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
+                    <div class="notification-card__side">
+                        <time>@notification.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</time>
                         @if (!notification.IsRead)
                         {
                             <form asp-action="MarkRead" method="post">
@@ -85,8 +115,8 @@ else
                             </form>
                         }
                     </div>
-                </div>
-            </div>
-        }
-    </div>
-}
+                </article>
+            }
+        </div>
+    }
+</section>

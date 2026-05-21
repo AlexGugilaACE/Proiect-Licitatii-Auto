@@ -4,41 +4,76 @@
     ViewData["Title"] = "Utilizatori";
 }
 
-<h1 class="h3 mb-3">Utilizatori</h1>
+<div class="admin-list-header">
+    <div>
+        <h1>Utilizatori</h1>
+        <p>@Model.TotalCount utilizatori găsiți</p>
+    </div>
+</div>
 
-<table class="table table-striped align-middle">
-    <thead>
-        <tr>
-            <th>Email</th>
-            <th>Nume</th>
-            <th>Roluri</th>
-            <th>Status</th>
-            <th>Creat</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var user in Model.Users)
+<form method="get" class="admin-search-panel">
+    <div>
+        <label for="query" class="form-label">Caută utilizator</label>
+        <input id="query" name="query" value="@Model.Query" class="form-control" placeholder="Email, nume sau prenume" />
+    </div>
+    <div class="admin-search-panel__actions">
+        <button class="btn btn-primary" type="submit">Caută</button>
+        <a class="btn btn-outline-secondary" asp-action="Users">Resetează</a>
+    </div>
+</form>
+
+@if (Model.Users.Count == 0)
+{
+    <div class="alert alert-info">Nu există utilizatori pentru criteriile selectate.</div>
+}
+else
+{
+    <div class="table-responsive admin-table-card">
+        <table class="table table-striped align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Nume</th>
+                    <th>Roluri</th>
+                    <th>Status</th>
+                    <th>Creat</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in Model.Users)
+                {
+                    <tr>
+                        <td>@user.Email</td>
+                        <td>@user.FullName</td>
+                        <td>@user.Roles</td>
+                        <td>@(user.IsDisabled ? "Dezactivat" : "Activ")</td>
+                        <td>@user.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-2 justify-content-end">
+                                <form asp-action="ChangeUserRole" method="post" class="d-flex gap-2">
+                                    <input type="hidden" name="UserId" value="@user.Id" />
+                                    <select name="Role" asp-items="Model.RoleItems" class="form-select form-select-sm"></select>
+                                    <button class="btn btn-sm btn-outline-primary" type="submit">Schimbă</button>
+                                </form>
+                                <form asp-action="ToggleUserDisabled" asp-route-id="@user.Id" method="post">
+                                    <button class="btn btn-sm btn-outline-secondary" type="submit">@(user.IsDisabled ? "Activează" : "Dezactivează")</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <nav class="admin-pagination" aria-label="Paginare utilizatori">
+        @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
         {
-            <tr>
-                <td>@user.Email</td>
-                <td>@user.FullName</td>
-                <td>@user.Roles</td>
-                <td>@(user.IsDisabled ? "Dezactivat" : "Activ")</td>
-                <td>@user.CreatedAt.ToLocalTime().ToString("g")</td>
-                <td>
-                    <div class="d-flex gap-2">
-                        <form asp-action="ChangeUserRole" method="post" class="d-flex gap-2">
-                            <input type="hidden" name="UserId" value="@user.Id" />
-                            <select name="Role" asp-items="Model.RoleItems" class="form-select form-select-sm"></select>
-                            <button class="btn btn-sm btn-outline-primary" type="submit">Schimbă</button>
-                        </form>
-                        <form asp-action="ToggleUserDisabled" asp-route-id="@user.Id" method="post">
-                            <button class="btn btn-sm btn-outline-secondary" type="submit">@(user.IsDisabled ? "Activează" : "Dezactivează")</button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
+            <a class="@(pageNumber == Model.Page ? "is-active" : string.Empty)"
+               asp-action="Users"
+               asp-route-query="@Model.Query"
+               asp-route-page="@pageNumber">@pageNumber</a>
         }
-    </tbody>
-</table>
+    </nav>
+}

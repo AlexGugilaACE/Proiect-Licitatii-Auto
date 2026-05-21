@@ -28,6 +28,7 @@ public class AuctionIndexViewModel
     public int TotalPages { get; set; }
 
     public IReadOnlyList<Auction> Auctions { get; set; } = [];
+    public IReadOnlySet<int> FavoriteAuctionIds { get; set; } = new HashSet<int>();
     public IReadOnlyList<SelectListItem> Brands { get; set; } = [];
     public IReadOnlyList<SelectListItem> Models { get; set; } = [];
     public IReadOnlyList<SelectListItem> FuelTypes { get; set; } = [];
@@ -38,7 +39,7 @@ public class AuctionIndexViewModel
     [
         new("Finalizare apropiata", "ending"),
         new("Cele mai noi", "newest"),
-        new("Pret crescator", "price_asc"),
-        new("Pret descrescator", "price_desc")
+        new("Ieftin la scump", "price_asc"),
+        new("Scump la ieftin", "price_desc")
     ];
 }

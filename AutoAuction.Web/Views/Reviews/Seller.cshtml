@@ -1,0 +1,113 @@
+@model SellerReviewsViewModel
+@using System.Globalization
+
+@{
+    ViewData["Title"] = $"Review-uri {Model.Seller.CompanyName}";
+    var roCulture = CultureInfo.GetCultureInfo("ro-RO");
+    var filledStars = (int)Math.Round(Model.Seller.RatingAverage, MidpointRounding.AwayFromZero);
+}
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success">@success</div>
+}
+
+<section class="seller-reviews-page">
+    <div class="seller-reviews-hero">
+        <div>
+            <span>Review-uri vanzator</span>
+            <h1>@Model.Seller.CompanyName</h1>
+            <p>@Model.Seller.Email</p>
+        </div>
+        <div class="seller-reviews-score">
+            <div class="rating-stars rating-stars--large" aria-label="Rating @Model.Seller.RatingAverage.ToString("0.0", roCulture) din 5">
+                @for (var i = 1; i <= 5; i++)
+                {
+                    <span class="@(i <= filledStars ? "is-filled" : string.Empty)">&#9733;</span>
+                }
+            </div>
+            <strong>@Model.Seller.RatingAverage.ToString("0.0", roCulture)</strong>
+            <span>@Model.Seller.RatingCount review-uri</span>
+        </div>
+    </div>
+
+    @if (Model.CanReview)
+    {
+        <section class="review-form-card">
+            <div class="review-form-card__header">
+                <h2>@(Model.HasOwnReview ? "Actualizeaza review-ul tau" : "Lasa un review")</h2>
+                <p>Review-ul tau ajuta alti cumparatori sa evalueze vanzatorul.</p>
+            </div>
+
+            <form asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="NewReview.SellerId" />
+
+                <div class="review-rating-picker" role="radiogroup" aria-label="Alege ratingul">
+                    @for (var rating = 5; rating >= 1; rating--)
+                    {
+                        <input type="radio" asp-for="NewReview.Rating" id="rating-@rating" value="@rating" />
+                        <label for="rating-@rating" aria-label="@rating stele">&#9733;</label>
+                    }
+                </div>
+
+                <textarea asp-for="NewReview.Comment" class="form-control" rows="4" placeholder="Scrie experienta ta cu acest vanzator"></textarea>
+                <span asp-validation-for="NewReview.Comment" class="text-danger"></span>
+
+                <button class="btn btn-primary mt-3" type="submit">Trimite review</button>
+            </form>
+        </section>
+    }
+    else if (User.Identity?.IsAuthenticated == true)
+    {
+        <div class="alert alert-secondary">Nu poti lasa review pentru propriul cont.</div>
+    }
+    else
+    {
+        <div class="alert alert-secondary">
+            <a asp-controller="Account" asp-action="Login">Autentifica-te</a> pentru a lasa un review.
+        </div>
+    }
+
+    <section class="reviews-list">
+        <div class="reviews-list__header">
+            <h2>Review-uri</h2>
+            <span>@Model.Reviews.Count total</span>
+        </div>
+
+        @if (Model.Reviews.Count == 0)
+        {
+            <div class="alert alert-info">Acest vanzator nu are inca review-uri.</div>
+        }
+        else
+        {
+            @foreach (var review in Model.Reviews)
+            {
+                <article class="review-card">
+                    <div class="review-card__header">
+                        <div>
+                            <h3>@review.BuyerName</h3>
+                            <p>@DateTimeDisplay.ToLocal(review.CreatedAt).ToString("dd.MM.yyyy HH:mm")</p>
+                        </div>
+                        <div class="rating-stars" aria-label="Rating @review.Rating din 5">
+                            @for (var i = 1; i <= 5; i++)
+                            {
+                                <span class="@(i <= review.Rating ? "is-filled" : string.Empty)">&#9733;</span>
+                            }
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(review.AuctionTitle))
+                    {
+                        <div class="review-card__auction">@review.AuctionTitle</div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(review.Comment))
+                    {
+                        <p class="review-card__comment">@review.Comment</p>
+                    }
+                </article>
+            }
+        }
+    </section>
+</section>

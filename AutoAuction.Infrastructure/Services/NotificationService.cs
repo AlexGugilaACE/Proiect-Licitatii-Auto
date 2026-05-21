@@ -50,4 +50,14 @@ public class NotificationService(ApplicationDbContext db) : INotificationService
 
         await db.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task DeleteReadAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var notifications = await db.Notifications
+            .Where(x => x.UserId == userId && x.IsRead)
+            .ToListAsync(cancellationToken);
+
+        db.Notifications.RemoveRange(notifications);
+        await db.SaveChangesAsync(cancellationToken);
+    }
 }
