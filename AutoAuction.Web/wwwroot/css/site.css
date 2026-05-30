@@ -2697,6 +2697,15 @@ select.auction-filter-control {
   flex-direction: column;
 }
 
+.dashboard-empty-state {
+  min-height: 110px;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  color: #6c757d;
+  text-align: center;
+}
+
 .dashboard-list-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(145px, auto);
@@ -3059,6 +3068,15 @@ select.auction-filter-control {
   .dashboard-grid,
   .dashboard-grid--admin {
     grid-template-columns: 1fr;
+  }
+
+  .admin-report-detail__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-report-detail__side {
+    border-top: 1px solid #dee2e6;
+    border-left: 0;
   }
 }
 
@@ -3634,6 +3652,229 @@ select.auction-filter-control {
 
 .admin-auction .favorite-auction__price {
   font-size: 1.25rem;
+}
+
+.admin-report-detail {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+}
+
+.admin-report-detail__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.25rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.admin-report-detail__header span:not(.badge) {
+  display: block;
+  color: #6c757d;
+  font-size: 0.86rem;
+  margin-bottom: 0.25rem;
+}
+
+.admin-report-detail__header h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.35rem;
+}
+
+.admin-report-detail__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+.admin-report-detail__main {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.admin-report-detail__main section {
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #fff;
+}
+
+.admin-report-detail__main h3 {
+  margin: 0 0 0.6rem;
+  color: #111827;
+  font-size: 1rem;
+}
+
+.admin-report-detail__main p {
+  margin: 0;
+  color: #212529;
+}
+
+.admin-report-detail__side {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+  padding: 1.25rem;
+  border-left: 1px solid #dee2e6;
+  background: #f8f9fa;
+}
+
+.admin-report-detail__side span {
+  display: block;
+  color: #6c757d;
+  font-size: 0.84rem;
+}
+
+.admin-report-detail__side strong {
+  color: #111827;
+}
+
+.auction-questions-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.auction-question {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #fff;
+}
+
+.auction-question__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.auction-question__header strong {
+  color: #212529;
+}
+
+.auction-question__answer {
+  border-left: 3px solid var(--bs-primary);
+  margin-top: 0.9rem;
+  padding: 0.75rem 0 0.1rem 0.9rem;
+  background: #f8f9fa;
+}
+
+.auction-question__answer span {
+  display: block;
+  color: #6c757d;
+  font-size: 0.82rem;
+  margin-bottom: 0.25rem;
+}
+
+.auction-question__answer-form {
+  margin-top: 0.9rem;
+}
+
+.transaction-messages-panel {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #fff;
+  padding: 1rem;
+}
+
+.transaction-messages-panel__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.transaction-messages-panel__header h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.transaction-messages-panel__header span {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.transaction-messages {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.transaction-message {
+  max-width: 78%;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: #f8f9fa;
+}
+
+.transaction-message--mine {
+  justify-self: end;
+  border-color: var(--bs-primary);
+  background: #eef5ff;
+}
+
+.transaction-message__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #6c757d;
+  font-size: 0.82rem;
+  margin-bottom: 0.35rem;
+}
+
+.transaction-message__meta strong {
+  color: #212529;
+}
+
+.transaction-message p {
+  margin: 0;
+}
+
+.transaction-message-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.review-card__rating-actions {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+}
+
+.review-report-toggle {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #dee2e6;
+  border-radius: 999px;
+  background: #fff;
+  color: #dc3545;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.review-report-toggle:hover {
+  background: #f8d7da;
+  border-color: #dc3545;
+  transform: translateY(-1px);
+}
+
+.review-report-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.review-report-form {
+  margin-top: 0.9rem;
+  border-top: 1px solid #dee2e6;
+  padding-top: 0.9rem;
 }
 
 @media (max-width: 992px) {

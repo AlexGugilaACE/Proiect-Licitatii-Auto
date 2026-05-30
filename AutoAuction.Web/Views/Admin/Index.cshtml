@@ -13,6 +13,7 @@
         <div class="dashboard-actions">
             <a class="btn btn-primary" asp-action="Users">Utilizatori</a>
             <a class="btn btn-outline-primary" asp-action="Auctions">Licitatii</a>
+            <a class="btn btn-outline-primary" asp-action="Reports">Raportari</a>
             <a class="btn btn-outline-primary" asp-action="ReferenceData">Dropdown-uri</a>
         </div>
     </div>
@@ -34,9 +35,82 @@
             <span>Total tranzactii</span>
             <strong>@Model.TransactionTotal.ToString("N0") EUR</strong>
         </div>
+        <div class="dashboard-stat">
+            <span>Selleri neaprobati</span>
+            <strong>@Model.PendingSellerCount</strong>
+        </div>
+        <div class="dashboard-stat">
+            <span>Raportari noi</span>
+            <strong>@Model.PendingReportCount</strong>
+        </div>
+        <div class="dashboard-stat">
+            <span>Dovezi plata</span>
+            <strong>@Model.PendingPaymentProofCount</strong>
+        </div>
     </div>
 
     <div class="dashboard-grid dashboard-grid--admin">
+        <section class="dashboard-panel">
+            <div class="dashboard-panel__header">
+                <h2>Verificari seller</h2>
+                <a asp-action="Users">Vezi utilizatori</a>
+            </div>
+
+            <div class="dashboard-list">
+                @if (Model.PendingSellers.Count == 0)
+                {
+                    <div class="dashboard-empty-state">Nu exista selleri in asteptare.</div>
+                }
+                else
+                {
+                    @foreach (var seller in Model.PendingSellers)
+                    {
+                        <article class="dashboard-list-item dashboard-list-item--compact">
+                            <div>
+                                <h3>@seller.CompanyName</h3>
+                                <p>@seller.FullName · @seller.Email</p>
+                            </div>
+                            <div class="dashboard-list-item__side">
+                                <span>@seller.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</span>
+                                <a asp-action="SellerProfile" asp-route-id="@seller.UserId">Verifica</a>
+                            </div>
+                        </article>
+                    }
+                }
+            </div>
+        </section>
+
+        <section class="dashboard-panel">
+            <div class="dashboard-panel__header">
+                <h2>Raportari noi</h2>
+                <a asp-action="Reports">Gestioneaza</a>
+            </div>
+
+            <div class="dashboard-list">
+                @if (Model.RecentReports.Count == 0)
+                {
+                    <div class="dashboard-empty-state">Nu exista raportari noi.</div>
+                }
+                else
+                {
+                    @foreach (var report in Model.RecentReports)
+                    {
+                        <article class="dashboard-list-item dashboard-list-item--compact">
+                            <div>
+                                <h3>@(report.TargetType == AutoAuction.Domain.Enums.ReportTargetType.Auction ? "Licitatie" : "Review")</h3>
+                                <p>@report.Reason</p>
+                                <p>Reclamat: @report.ReportedUserName</p>
+                            </div>
+                            <div class="dashboard-list-item__side">
+                                <span>@report.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</span>
+                                <a asp-action="ReportDetails" asp-route-id="@report.Id">Detalii</a>
+                            </div>
+                        </article>
+                    }
+                }
+            </div>
+        </section>
+
         <section class="dashboard-panel">
             <div class="dashboard-panel__header">
                 <h2>Licitatii recente</h2>
@@ -91,6 +165,34 @@
                             <span>@user.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</span>
                         </div>
                     </article>
+                }
+            </div>
+        </section>
+
+        <section class="dashboard-panel">
+            <div class="dashboard-panel__header">
+                <h2>Audit recent</h2>
+            </div>
+
+            <div class="dashboard-list">
+                @if (Model.RecentAuditLogs.Count == 0)
+                {
+                    <div class="dashboard-empty-state">Nu exista actiuni administrative inregistrate.</div>
+                }
+                else
+                {
+                    @foreach (var log in Model.RecentAuditLogs)
+                    {
+                        <article class="dashboard-list-item dashboard-list-item--compact">
+                            <div>
+                                <h3>@log.Action</h3>
+                                <p>@log.TargetType #@log.TargetId · @log.Details</p>
+                            </div>
+                            <div class="dashboard-list-item__side">
+                                <span>@log.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                            </div>
+                        </article>
+                    }
                 }
             </div>
         </section>

@@ -11,6 +11,10 @@
 {
     <div class="alert alert-success">@success</div>
 }
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
 
 <section class="seller-reviews-page">
     <div class="seller-reviews-hero">
@@ -89,10 +93,26 @@
                             <h3>@review.BuyerName</h3>
                             <p>@DateTimeDisplay.ToLocal(review.CreatedAt).ToString("dd.MM.yyyy HH:mm")</p>
                         </div>
-                        <div class="rating-stars" aria-label="Rating @review.Rating din 5">
-                            @for (var i = 1; i <= 5; i++)
+                        <div class="review-card__rating-actions">
+                            <div class="rating-stars" aria-label="Rating @review.Rating din 5">
+                                @for (var i = 1; i <= 5; i++)
+                                {
+                                    <span class="@(i <= review.Rating ? "is-filled" : string.Empty)">&#9733;</span>
+                                }
+                            </div>
+                            @if (User.Identity?.IsAuthenticated == true && !User.IsInRole("Administrator"))
                             {
-                                <span class="@(i <= review.Rating ? "is-filled" : string.Empty)">&#9733;</span>
+                                <button class="review-report-toggle" type="button" data-review-report-toggle="@review.Id" aria-label="Raporteaza review" title="Raporteaza review">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M3 10v4h3l7 4V6l-7 4H3Zm13.5 2a3.5 3.5 0 0 0-2-3.16v6.32a3.5 3.5 0 0 0 2-3.16Zm-2-8.73v2.08a7 7 0 0 1 0 13.3v2.08a9 9 0 0 0 0-17.46Z" />
+                                    </svg>
+                                </button>
+                            }
+                            @if (User.IsInRole("Administrator"))
+                            {
+                                <form asp-action="Delete" asp-route-id="@review.Id" method="post">
+                                    <button class="btn btn-outline-danger btn-sm" type="submit">Sterge</button>
+                                </form>
                             }
                         </div>
                     </div>
@@ -106,8 +126,27 @@
                     {
                         <p class="review-card__comment">@review.Comment</p>
                     }
+
+                    @if (User.Identity?.IsAuthenticated == true && !User.IsInRole("Administrator"))
+                    {
+                        <form asp-action="Report" asp-route-id="@review.Id" method="post" class="review-report-form d-none" data-review-report-form="@review.Id">
+                            <textarea name="reason" class="form-control mb-2" rows="2" maxlength="1000" placeholder="Motivul raportarii"></textarea>
+                            <button class="btn btn-danger btn-sm" type="submit">Raporteaza review</button>
+                        </form>
+                    }
                 </article>
             }
         }
     </section>
 </section>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll("[data-review-report-toggle]").forEach((button) => {
+            button.addEventListener("click", () => {
+                const form = document.querySelector(`[data-review-report-form="${button.dataset.reviewReportToggle}"]`);
+                form?.classList.toggle("d-none");
+            });
+        });
+    </script>
+}

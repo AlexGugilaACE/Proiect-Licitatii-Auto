@@ -1,0 +1,111 @@
+@model AutoAuction.Web.Models.AdminSellerProfileViewModel
+@using System.Globalization
+
+@{
+    ViewData["Title"] = "Profil vanzator";
+    var roCulture = CultureInfo.GetCultureInfo("ro-RO");
+    var filledStars = (int)Math.Round(Model.RatingAverage, MidpointRounding.AwayFromZero);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-1">Profil vanzator</h1>
+        <div class="text-muted">Verificare detalii cont si firma inainte de aprobare.</div>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Users">Inapoi</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                        <h2 class="h4 mb-1">@Model.CompanyName</h2>
+                        <div class="text-muted">@Model.FullName</div>
+                    </div>
+                    <span class="badge @(Model.IsVerified ? "text-bg-success" : "text-bg-warning")">
+                        @(Model.IsVerified ? "Aprobat" : Model.IsRejected ? "Respins" : "In asteptare")
+                    </span>
+                </div>
+
+                @if (Model.IsRejected)
+                {
+                    <div class="alert alert-danger">
+                        <strong>Motiv respingere:</strong> @Model.RejectionReason
+                    </div>
+                }
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Email</dt>
+                    <dd class="col-sm-8">@Model.Email</dd>
+
+                    <dt class="col-sm-4">Telefon</dt>
+                    <dd class="col-sm-8">@Model.PhoneNumber</dd>
+
+                    <dt class="col-sm-4">Denumire firma</dt>
+                    <dd class="col-sm-8">@Model.CompanyName</dd>
+
+                    <dt class="col-sm-4">CUI firma</dt>
+                    <dd class="col-sm-8">@Model.FiscalCode</dd>
+
+                    <dt class="col-sm-4">Adresa firma</dt>
+                    <dd class="col-sm-8">@Model.CompanyAddress</dd>
+
+                    <dt class="col-sm-4">Cont creat</dt>
+                    <dd class="col-sm-8">@Model.UserCreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+
+                    <dt class="col-sm-4">Profil dealer creat</dt>
+                    <dd class="col-sm-8">@Model.ProfileCreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5">Statistici</h2>
+                <div class="account-summary__meta">
+                    <span>Licitatii</span>
+                    <strong>@Model.AuctionCount</strong>
+                </div>
+                <div class="account-summary__meta">
+                    <span>Tranzactii</span>
+                    <strong>@Model.TransactionCount</strong>
+                </div>
+                <div class="account-seller-rating mt-3">
+                    <span>Rating</span>
+                    <div class="rating-stars" aria-label="Rating @Model.RatingAverage.ToString("0.0", roCulture) din 5">
+                        @for (var i = 1; i <= 5; i++)
+                        {
+                            <span class="@(i <= filledStars ? "is-filled" : string.Empty)">&#9733;</span>
+                        }
+                    </div>
+                    <strong>@Model.RatingAverage.ToString("0.0", roCulture) / 5</strong>
+                    <small>@Model.RatingCount review-uri</small>
+                </div>
+            </div>
+        </div>
+
+        @if (!Model.IsVerified)
+        {
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h5">Aprobare</h2>
+                    <p class="text-muted">Aproba contul doar dupa ce datele firmei si ale persoanei de contact sunt corecte.</p>
+                    <form asp-action="ApproveSeller" asp-route-id="@Model.UserId" method="post">
+                        <button class="btn btn-success w-100" type="submit">Aproba vanzatorul</button>
+                    </form>
+                    <hr />
+                    <form asp-action="RejectSeller" method="post">
+                        <input type="hidden" name="UserId" value="@Model.UserId" />
+                        <label class="form-label" for="rejectReason">Motiv respingere</label>
+                        <textarea id="rejectReason" name="Reason" class="form-control mb-2" rows="3" maxlength="1000" placeholder="Explica ce trebuie corectat"></textarea>
+                        <button class="btn btn-outline-danger w-100" type="submit">Respinge vanzatorul</button>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+</div>

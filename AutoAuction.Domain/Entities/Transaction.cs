@@ -13,6 +13,9 @@ public class Transaction
     public TransactionStatus Status { get; set; } = TransactionStatus.Pending;
     public bool SellerConfirmed { get; set; }
     public bool BuyerConfirmed { get; set; }
+    public string PaymentProofPath { get; set; } = string.Empty;
+    public DateTime? PaymentProofUploadedAt { get; set; }
+    public PaymentProofStatus PaymentProofStatus { get; set; } = PaymentProofStatus.NotUploaded;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ConfirmedAt { get; set; }
 }

@@ -23,6 +23,8 @@ public class SellerReviewsViewModel
 
 public class ReviewListItemViewModel
 {
+    public int Id { get; set; }
+    public string SellerId { get; set; } = string.Empty;
     public int Rating { get; set; }
     public string Comment { get; set; } = string.Empty;
     public string BuyerName { get; set; } = string.Empty;

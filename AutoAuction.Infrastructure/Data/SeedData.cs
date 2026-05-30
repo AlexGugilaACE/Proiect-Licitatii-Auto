@@ -58,6 +58,22 @@ public static class SeedData
             await userManager.AddToRoleAsync(seller, AppRoles.Seller);
         }
 
+        var sellerProfile = await db.DealerProfiles.FirstOrDefaultAsync(x => x.UserId == seller.Id);
+        if (sellerProfile is null)
+        {
+            db.DealerProfiles.Add(new DealerProfile
+            {
+                UserId = seller.Id,
+                CompanyName = "AutoAuction Demo SRL",
+                FiscalCode = "RO12345678",
+                IsVerified = true
+            });
+        }
+        else if (!sellerProfile.IsVerified)
+        {
+            sellerProfile.IsVerified = true;
+        }
+
         const string buyerEmail = "buyer@autoauction.local";
         var buyer = await userManager.FindByEmailAsync(buyerEmail);
         if (buyer is null)

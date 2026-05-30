@@ -27,6 +27,11 @@
     </div>
 </form>
 
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+
 @if (Model.Auctions.Count == 0)
 {
     <div class="alert alert-info">Nu există licitații pentru criteriile selectate.</div>
@@ -97,6 +102,9 @@ else
                                     <button class="btn btn-outline-danger btn-sm" type="submit">Anulează</button>
                                 </form>
                             }
+                            <form asp-action="DeleteAuction" asp-route-id="@auction.Id" method="post">
+                                <button class="btn btn-danger btn-sm" type="submit">Șterge</button>
+                            </form>
                         </div>
                         <a class="favorite-auction__details" asp-controller="Auctions" asp-action="Details" asp-route-id="@auction.Id">
                             Vezi detalii

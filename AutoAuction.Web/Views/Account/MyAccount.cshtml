@@ -36,6 +36,10 @@
             <div class="account-avatar">@($"{Model.Profile.FirstName.FirstOrDefault()}{Model.Profile.LastName.FirstOrDefault()}".ToUpperInvariant())</div>
             <h2>@($"{Model.Profile.FirstName} {Model.Profile.LastName}".Trim())</h2>
             <p>@Model.Email</p>
+            @if (!string.IsNullOrWhiteSpace(Model.CompanyName))
+            {
+                <p>@Model.CompanyName</p>
+            }
             <div class="account-summary__meta">
                 <span>Rol</span>
                 <strong>@Model.Role</strong>
@@ -79,6 +83,30 @@
                             <label asp-for="Profile.LastName" class="form-label"></label>
                             <input asp-for="Profile.LastName" class="form-control" />
                             <span asp-validation-for="Profile.LastName" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="auth-form-grid">
+                        <div class="mb-3">
+                            <label asp-for="Profile.PhoneNumber" class="form-label"></label>
+                            <input asp-for="Profile.PhoneNumber" class="form-control" />
+                            <span asp-validation-for="Profile.PhoneNumber" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="Profile.FiscalCode" class="form-label"></label>
+                            <input asp-for="Profile.FiscalCode" class="form-control" />
+                            <span asp-validation-for="Profile.FiscalCode" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="auth-form-grid">
+                        <div class="mb-3">
+                            <label asp-for="Profile.CompanyName" class="form-label"></label>
+                            <input asp-for="Profile.CompanyName" class="form-control" />
+                            <span asp-validation-for="Profile.CompanyName" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="Profile.CompanyAddress" class="form-label"></label>
+                            <input asp-for="Profile.CompanyAddress" class="form-control" />
+                            <span asp-validation-for="Profile.CompanyAddress" class="text-danger"></span>
                         </div>
                     </div>
                     <button class="btn btn-primary" type="submit">Salveaza datele</button>

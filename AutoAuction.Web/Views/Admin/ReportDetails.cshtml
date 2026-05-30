@@ -1,0 +1,106 @@
+@model AutoAuction.Web.Models.UserReportListItemViewModel
+@using AutoAuction.Domain.Enums
+
+@{
+    ViewData["Title"] = "Detalii raportare";
+    var isAuctionReport = Model.TargetType == ReportTargetType.Auction;
+    var statusClass = Model.Status switch
+    {
+        ReportStatus.Resolved => "text-bg-success",
+        ReportStatus.Rejected => "text-bg-secondary",
+        _ => "text-bg-warning"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-1">Detalii raportare #@Model.Id</h1>
+        <div class="text-muted">Analiza unei raportari trimise de utilizator.</div>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Reports">Inapoi la raportari</a>
+</div>
+
+<section class="admin-report-detail">
+    <div class="admin-report-detail__header">
+        <div>
+            <span>@(isAuctionReport ? "Raportare licitatie" : "Raportare review")</span>
+            <h2>@(isAuctionReport ? Model.AuctionTitle ?? "Licitatia a fost stearsa" : "Review raportat")</h2>
+        </div>
+        <span class="badge @statusClass">@Model.Status</span>
+    </div>
+
+    <div class="admin-report-detail__grid">
+        <div class="admin-report-detail__main">
+            <section>
+                <h3>Motiv raportare</h3>
+                <p>@Model.Reason</p>
+            </section>
+
+            <section>
+                <h3>Context raportat</h3>
+                @if (isAuctionReport)
+                {
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Tip</dt>
+                        <dd class="col-sm-8">Licitatie</dd>
+
+                        <dt class="col-sm-4">Licitatie</dt>
+                        <dd class="col-sm-8">@(Model.AuctionTitle ?? "Stearsa")</dd>
+                    </dl>
+                }
+                else
+                {
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Tip</dt>
+                        <dd class="col-sm-8">Review</dd>
+
+                        <dt class="col-sm-4">Continut review</dt>
+                        <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.ReviewComment) ? "Review-ul a fost sters." : Model.ReviewComment)</dd>
+                    </dl>
+                }
+            </section>
+        </div>
+
+        <aside class="admin-report-detail__side">
+            <div>
+                <span>Raportat de</span>
+                <strong>@Model.ReporterName</strong>
+            </div>
+            <div>
+                <span>Utilizator reclamat</span>
+                <strong>@Model.ReportedUserName</strong>
+                @if (!string.IsNullOrWhiteSpace(Model.ReportedUserEmail))
+                {
+                    <small class="text-muted d-block">@Model.ReportedUserEmail</small>
+                }
+            </div>
+            <div>
+                <span>Data raportarii</span>
+                <strong>@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</strong>
+            </div>
+            <div>
+                <span>Status</span>
+                <strong>@Model.Status</strong>
+            </div>
+
+            @if (Model.AuctionId is not null)
+            {
+                <a class="btn btn-outline-primary w-100" asp-controller="Auctions" asp-action="Details" asp-route-id="@Model.AuctionId">Vezi licitatia</a>
+            }
+
+            @if (Model.Status == ReportStatus.Pending)
+            {
+                <form asp-action="UpdateReportStatus" asp-route-id="@Model.Id" method="post">
+                    <input type="hidden" name="status" value="@ReportStatus.Resolved" />
+                    <input type="hidden" name="returnToDetails" value="true" />
+                    <button class="btn btn-success w-100" type="submit">Marcheaza rezolvata</button>
+                </form>
+                <form asp-action="UpdateReportStatus" asp-route-id="@Model.Id" method="post">
+                    <input type="hidden" name="status" value="@ReportStatus.Rejected" />
+                    <input type="hidden" name="returnToDetails" value="true" />
+                    <button class="btn btn-outline-secondary w-100" type="submit">Respinge raportarea</button>
+                </form>
+            }
+        </aside>
+    </div>
+</section>

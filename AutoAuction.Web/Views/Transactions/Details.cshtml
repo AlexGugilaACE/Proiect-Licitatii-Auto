@@ -6,6 +6,7 @@
     ViewData["Title"] = "Tranzactie";
     var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
     var isSeller = Model.SellerId == currentUserId;
+    var isBuyer = Model.BuyerId == currentUserId;
     var currentUserConfirmed = (isSeller && Model.SellerConfirmed)
         || (!isSeller && Model.BuyerConfirmed);
     var otherPartyConfirmed = isSeller ? Model.BuyerConfirmed : Model.SellerConfirmed;
@@ -16,6 +17,14 @@
         TransactionStatus.Cancelled => "text-bg-danger",
         _ => "text-bg-warning"
     };
+    var proofStatusText = Model.PaymentProofStatus switch
+    {
+        PaymentProofStatus.Accepted => "Acceptata",
+        PaymentProofStatus.Rejected => "Respinsa",
+        PaymentProofStatus.PendingReview => "In verificare",
+        _ => "Neincarcata"
+    };
+    var messages = ViewBag.Messages as IReadOnlyList<TransactionMessageListItemViewModel> ?? Array.Empty<TransactionMessageListItemViewModel>();
     var mainImage = Model.Auction?.Images.OrderByDescending(x => x.IsMainImage).ThenBy(x => x.SortOrder).FirstOrDefault();
 }
 
@@ -26,6 +35,15 @@
     </div>
     <a class="btn btn-outline-secondary" asp-action="Index">Inapoi</a>
 </div>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
 
 <div class="row g-3">
     <div class="col-lg-8">
@@ -68,9 +86,62 @@
                         <dt class="col-sm-4">Confirmata</dt>
                         <dd class="col-sm-8">@Model.ConfirmedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
                     }
+
+                    <dt class="col-sm-4">Dovada plata</dt>
+                    <dd class="col-sm-8">
+                        @if (!string.IsNullOrWhiteSpace(Model.PaymentProofPath))
+                        {
+                            <a href="@Model.PaymentProofPath" target="_blank" rel="noopener">Deschide dovada incarcata</a>
+                            <span class="badge text-bg-secondary d-block mt-1">@proofStatusText</span>
+                            @if (Model.PaymentProofUploadedAt is not null)
+                            {
+                                <span class="text-muted d-block">@Model.PaymentProofUploadedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="text-muted">Nu a fost incarcata inca.</span>
+                        }
+                    </dd>
                 </dl>
             </div>
         </div>
+
+        <section class="transaction-messages-panel mt-3">
+            <div class="transaction-messages-panel__header">
+                <h2>Mesaje tranzactie</h2>
+                <span>@messages.Count mesaje</span>
+            </div>
+
+            <div class="transaction-messages">
+                @if (messages.Count == 0)
+                {
+                    <div class="text-muted">Nu exista mesaje pentru aceasta tranzactie.</div>
+                }
+                else
+                {
+                    @foreach (var message in messages)
+                    {
+                        var isMine = message.SenderId == currentUserId;
+                        <article class="transaction-message @(isMine ? "transaction-message--mine" : string.Empty)">
+                            <div class="transaction-message__meta">
+                                <strong>@(isMine ? "Tu" : message.SenderName)</strong>
+                                <span>@message.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                            </div>
+                            <p>@message.Message</p>
+                        </article>
+                    }
+                }
+            </div>
+
+            @if (Model.Status != TransactionStatus.Cancelled)
+            {
+                <form asp-action="SendMessage" asp-route-id="@Model.Id" method="post" class="transaction-message-form">
+                    <textarea name="Message" class="form-control" rows="3" maxlength="1200" placeholder="Scrie un mesaj pentru cealalta parte"></textarea>
+                    <button class="btn btn-primary" type="submit">Trimite mesaj</button>
+                </form>
+            }
+        </section>
     </div>
 
     <div class="col-lg-4">
@@ -80,6 +151,39 @@
                 <a class="btn btn-primary w-100 mb-3" asp-controller="Auctions" asp-action="Details" asp-route-id="@Model.AuctionId">
                     Vezi detaliile licitatiei
                 </a>
+
+                <div class="mb-3">
+                    <h3 class="h6">Dovada plata</h3>
+                    @if (!string.IsNullOrWhiteSpace(Model.PaymentProofPath))
+                    {
+                        <a class="btn btn-outline-primary w-100 mb-2" href="@Model.PaymentProofPath" target="_blank" rel="noopener">Vezi dovada</a>
+                        <div class="small text-muted mb-2">Status: @proofStatusText</div>
+                    }
+                    @if (isBuyer)
+                    {
+                        <form asp-action="UploadPaymentProof" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data">
+                            <input class="form-control mb-2" type="file" name="paymentProof" accept=".jpg,.jpeg,.png,.webp,.pdf" />
+                            <button class="btn btn-outline-secondary w-100" type="submit">Incarca dovada plata</button>
+                        </form>
+                    }
+                    else if (string.IsNullOrWhiteSpace(Model.PaymentProofPath))
+                    {
+                        <div class="text-muted small">Cumparatorul nu a incarcat inca dovada platii.</div>
+                    }
+                    else if (isSeller && Model.PaymentProofStatus == PaymentProofStatus.PendingReview)
+                    {
+                        <div class="d-flex gap-2">
+                            <form asp-action="ReviewPaymentProof" asp-route-id="@Model.Id" method="post" class="w-100">
+                                <input type="hidden" name="status" value="@PaymentProofStatus.Accepted" />
+                                <button class="btn btn-success w-100" type="submit">Accepta</button>
+                            </form>
+                            <form asp-action="ReviewPaymentProof" asp-route-id="@Model.Id" method="post" class="w-100">
+                                <input type="hidden" name="status" value="@PaymentProofStatus.Rejected" />
+                                <button class="btn btn-outline-danger w-100" type="submit">Respinge</button>
+                            </form>
+                        </div>
+                    }
+                </div>
 
                 @if (Model.Status == TransactionStatus.Confirmed)
                 {

@@ -15,6 +15,22 @@ public class RegisterViewModel
     public string Email { get; set; } = string.Empty;
 
     [Required]
+    [Phone]
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    [Required]
+    [Display(Name = "Denumire firma")]
+    public string CompanyName { get; set; } = string.Empty;
+
+    [Required]
+    [Display(Name = "CUI firma")]
+    public string FiscalCode { get; set; } = string.Empty;
+
+    [Required]
+    [Display(Name = "Adresa firma")]
+    public string CompanyAddress { get; set; } = string.Empty;
+
+    [Required]
     [DataType(DataType.Password)]
     public string Password { get; set; } = string.Empty;
 

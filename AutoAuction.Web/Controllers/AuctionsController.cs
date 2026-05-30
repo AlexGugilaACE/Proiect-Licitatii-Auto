@@ -1,5 +1,6 @@
 using AutoAuction.Application.DTOs;
 using AutoAuction.Application.Interfaces;
+using AutoAuction.Domain.Entities;
 using AutoAuction.Domain.Enums;
 using AutoAuction.Infrastructure.Data;
 using AutoAuction.Infrastructure.Identity;
@@ -157,11 +158,12 @@ public class AuctionsController(
         }
 
         ViewBag.SimilarAuctions = await auctionService.GetSimilarAuctionsAsync(auction, cancellationToken: cancellationToken);
+        ViewBag.Questions = await BuildAuctionQuestionsAsync(id, cancellationToken);
 
         return View(auction);
     }
 
-    [Authorize]
+    [Authorize(Roles = $"{AppRoles.Buyer},{AppRoles.Seller}")]
     public async Task<IActionResult> Bids(int id, CancellationToken cancellationToken)
     {
         var auction = await auctionService.GetDetailsAsync(id, cancellationToken);
@@ -190,6 +192,12 @@ public class AuctionsController(
     [Authorize(Roles = AppRoles.Seller)]
     public async Task<IActionResult> Create(CancellationToken cancellationToken)
     {
+        if (!await IsCurrentSellerApprovedAsync(cancellationToken))
+        {
+            TempData["Error"] = "Contul tau de vanzator trebuie aprobat de administrator inainte sa poti crea licitatii.";
+            return RedirectToAction(nameof(Mine));
+        }
+
         var model = await BuildFormModelAsync(new AuctionFormViewModel(), cancellationToken);
         return View(model);
     }
@@ -339,6 +347,12 @@ public class AuctionsController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(AuctionFormViewModel model, CancellationToken cancellationToken)
     {
+        if (!await IsCurrentSellerApprovedAsync(cancellationToken))
+        {
+            TempData["Error"] = "Contul tau de vanzator trebuie aprobat de administrator inainte sa poti crea licitatii.";
+            return RedirectToAction(nameof(Mine));
+        }
+
         if (!ModelState.IsValid)
         {
             return View(await BuildFormModelAsync(model, cancellationToken));
@@ -385,6 +399,47 @@ public class AuctionsController(
             TempData["Error"] = result.Message;
         }
 
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Report(int id, string reason, CancellationToken cancellationToken)
+    {
+        var auction = await db.Auctions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (auction is null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            TempData["Error"] = "Completeaza motivul raportarii.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        var reporterId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var alreadyReported = await db.UserReports.AnyAsync(x =>
+            x.ReporterId == reporterId &&
+            x.TargetType == ReportTargetType.Auction &&
+            x.AuctionId == id &&
+            x.Status == ReportStatus.Pending,
+            cancellationToken);
+
+        if (!alreadyReported)
+        {
+            db.UserReports.Add(new UserReport
+            {
+                ReporterId = reporterId,
+                TargetType = ReportTargetType.Auction,
+                AuctionId = id,
+                Reason = reason.Trim()
+            });
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        TempData["Success"] = "Raportarea a fost trimisa catre administrator.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -447,6 +502,85 @@ public class AuctionsController(
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Buyer)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AskQuestion(int id, CreateAuctionQuestionViewModel model, CancellationToken cancellationToken)
+    {
+        var auction = await db.Auctions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (auction is null)
+        {
+            return NotFound();
+        }
+
+        var buyerId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        if (auction.SellerId == buyerId)
+        {
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = "Intrebarea trebuie completata si poate avea maximum 1000 de caractere.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        db.AuctionQuestions.Add(new AuctionQuestion
+        {
+            AuctionId = id,
+            BuyerId = buyerId,
+            Question = model.Question.Trim()
+        });
+
+        db.Notifications.Add(new Notification
+        {
+            UserId = auction.SellerId,
+            Title = "Intrebare noua",
+            Message = $"Ai primit o intrebare pentru licitatia {auction.Title}.",
+            Type = NotificationType.AuctionQuestion
+        });
+
+        await db.SaveChangesAsync(cancellationToken);
+        TempData["Success"] = "Intrebarea a fost trimisa vanzatorului.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Seller)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AnswerQuestion(int id, AnswerAuctionQuestionViewModel model, CancellationToken cancellationToken)
+    {
+        var question = await db.AuctionQuestions
+            .Include(x => x.Auction)
+            .FirstOrDefaultAsync(x => x.Id == model.QuestionId && x.AuctionId == id, cancellationToken);
+
+        var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        if (question?.Auction is null || question.Auction.SellerId != sellerId)
+        {
+            return NotFound();
+        }
+
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = "Raspunsul trebuie completat si poate avea maximum 1000 de caractere.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        question.Answer = model.Answer.Trim();
+        question.AnsweredAt = DateTime.UtcNow;
+        db.Notifications.Add(new Notification
+        {
+            UserId = question.BuyerId,
+            Title = "Raspuns la intrebare",
+            Message = $"Vanzatorul a raspuns la intrebarea ta pentru licitatia {question.Auction.Title}.",
+            Type = NotificationType.QuestionAnswered
+        });
+
+        await db.SaveChangesAsync(cancellationToken);
+        TempData["Success"] = "Raspunsul a fost publicat.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
     private async Task<AuctionFormViewModel> BuildFormModelAsync(AuctionFormViewModel model, CancellationToken cancellationToken)
     {
         model.Brands = (await referenceData.GetBrandsAsync(cancellationToken))
@@ -479,6 +613,48 @@ public class AuctionsController(
         return (await referenceData.GetOptionsAsync(type, cancellationToken))
             .Select(x => new SelectListItem(x.Name, x.Id.ToString()))
             .ToList();
+    }
+
+    private async Task<bool> IsCurrentSellerApprovedAsync(CancellationToken cancellationToken)
+    {
+        var sellerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (sellerId is null)
+        {
+            return false;
+        }
+
+        return await db.DealerProfiles
+            .AnyAsync(x => x.UserId == sellerId && x.IsVerified, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<AuctionQuestionListItemViewModel>> BuildAuctionQuestionsAsync(int auctionId, CancellationToken cancellationToken)
+    {
+        var questions = await db.AuctionQuestions
+            .AsNoTracking()
+            .Where(x => x.AuctionId == auctionId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(cancellationToken);
+        var buyerIds = questions.Select(x => x.BuyerId).Distinct().ToList();
+        var buyers = await db.Users
+            .AsNoTracking()
+            .Where(x => buyerIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+
+        return questions.Select(question =>
+        {
+            buyers.TryGetValue(question.BuyerId, out var buyer);
+            var buyerName = buyer is null ? "Cumparator" : $"{buyer.FirstName} {buyer.LastName}".Trim();
+
+            return new AuctionQuestionListItemViewModel
+            {
+                Id = question.Id,
+                BuyerName = string.IsNullOrWhiteSpace(buyerName) ? buyer?.Email ?? "Cumparator" : buyerName,
+                Question = question.Question,
+                Answer = question.Answer,
+                CreatedAt = question.CreatedAt,
+                AnsweredAt = question.AnsweredAt
+            };
+        }).ToList();
     }
 
     private async Task<IReadOnlyList<SelectListItem>> BuildFilterOptionsAsync(AttributeOptionType type, string emptyLabel, int? selectedId, CancellationToken cancellationToken)

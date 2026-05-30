@@ -3,12 +3,16 @@ using AutoAuction.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using AutoAuction.Infrastructure.Data;
+using AutoAuction.Domain.Entities;
 
 namespace AutoAuction.Web.Controllers;
 
 public class AccountController(
     UserManager<ApplicationUser> userManager,
-    SignInManager<ApplicationUser> signInManager) : Controller
+    SignInManager<ApplicationUser> signInManager,
+    ApplicationDbContext db) : Controller
 {
     [Authorize]
     [HttpGet]
@@ -43,7 +47,30 @@ public class AccountController(
 
         user.FirstName = model.FirstName.Trim();
         user.LastName = model.LastName.Trim();
+        user.PhoneNumber = model.PhoneNumber.Trim();
+        user.CompanyAddress = model.CompanyAddress.Trim();
+
+        var dealerProfile = await db.DealerProfiles.FirstOrDefaultAsync(x => x.UserId == user.Id);
+        if (dealerProfile is null)
+        {
+            db.DealerProfiles.Add(new DealerProfile
+            {
+                UserId = user.Id,
+                CompanyName = model.CompanyName.Trim(),
+                FiscalCode = model.FiscalCode.Trim()
+            });
+        }
+        else
+        {
+            dealerProfile.CompanyName = model.CompanyName.Trim();
+            dealerProfile.FiscalCode = model.FiscalCode.Trim();
+        }
+
         var result = await userManager.UpdateAsync(user);
+        if (result.Succeeded)
+        {
+            await db.SaveChangesAsync();
+        }
 
         TempData[result.Succeeded ? "SuccessMessage" : "ErrorMessage"] =
             result.Succeeded ? "Datele contului au fost actualizate." : "Datele contului nu au putut fi actualizate.";
@@ -165,7 +192,9 @@ public class AccountController(
             Email = model.Email,
             EmailConfirmed = true,
             FirstName = model.FirstName,
-            LastName = model.LastName
+            LastName = model.LastName,
+            PhoneNumber = model.PhoneNumber,
+            CompanyAddress = model.CompanyAddress
         };
 
         var result = await userManager.CreateAsync(user, model.Password);
@@ -173,6 +202,13 @@ public class AccountController(
         {
             var role = model.Role == AppRoles.Seller ? AppRoles.Seller : AppRoles.Buyer;
             await userManager.AddToRoleAsync(user, role);
+            db.DealerProfiles.Add(new DealerProfile
+            {
+                UserId = user.Id,
+                CompanyName = model.CompanyName.Trim(),
+                FiscalCode = model.FiscalCode.Trim()
+            });
+            await db.SaveChangesAsync();
             await signInManager.SignInAsync(user, isPersistent: false);
             return RedirectToAction("Index", "Dashboard");
         }
@@ -232,6 +268,9 @@ public class AccountController(
     private async Task<AccountProfileViewModel> BuildAccountProfileViewModelAsync(ApplicationUser user)
     {
         var roles = await userManager.GetRolesAsync(user);
+        var dealerProfile = await db.DealerProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.UserId == user.Id);
 
         return new AccountProfileViewModel
         {
@@ -242,10 +281,16 @@ public class AccountController(
             CreatedAt = user.CreatedAt,
             RatingAverage = user.RatingAverage,
             RatingCount = user.RatingCount,
+            CompanyName = dealerProfile?.CompanyName ?? string.Empty,
+            FiscalCode = dealerProfile?.FiscalCode ?? string.Empty,
             Profile = new ProfileDetailsViewModel
             {
                 FirstName = user.FirstName,
-                LastName = user.LastName
+                LastName = user.LastName,
+                PhoneNumber = user.PhoneNumber ?? string.Empty,
+                CompanyName = dealerProfile?.CompanyName ?? string.Empty,
+                FiscalCode = dealerProfile?.FiscalCode ?? string.Empty,
+                CompanyAddress = user.CompanyAddress
             }
         };
     }

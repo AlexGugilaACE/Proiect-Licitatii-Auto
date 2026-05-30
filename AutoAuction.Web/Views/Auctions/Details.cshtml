@@ -15,6 +15,7 @@
     var autoBidMaxAmount = ViewBag.AutoBidMaxAmount as decimal?;
     var bidCooldownUntil = ViewBag.BidCooldownUntil as DateTime?;
     var isHighestBidder = (ViewBag.IsHighestBidder as bool?) == true;
+    var questions = ViewBag.Questions as IReadOnlyList<AuctionQuestionListItemViewModel> ?? Array.Empty<AuctionQuestionListItemViewModel>();
     var canForceCloseAuction = User.Identity?.IsAuthenticated == true &&
         Model.Status is AuctionStatus.Active or AuctionStatus.Scheduled;
 }
@@ -157,6 +158,71 @@ else if (Model.Status == AuctionStatus.Unsold)
                 <div class="condition-item"><span>Anvelope</span><strong>@Model.ConditionReport?.TireCondition</strong></div>
             </div>
         </section>
+
+        <section class="auction-detail-section">
+            <div class="auction-detail-section__header">
+                <h2>Intrebari si raspunsuri</h2>
+                <span>@questions.Count total</span>
+            </div>
+
+            @if (User.IsInRole("Cumparator") && !isOwnAuction && Model.Status is AuctionStatus.Active or AuctionStatus.Scheduled)
+            {
+                <form asp-action="AskQuestion" asp-route-id="@Model.Id" method="post" class="mb-3">
+                    <textarea name="Question" class="form-control mb-2" rows="3" maxlength="1000" placeholder="Adreseaza o intrebare vanzatorului"></textarea>
+                    <button class="btn btn-primary" type="submit">Trimite intrebarea</button>
+                </form>
+            }
+            else if (!User.Identity?.IsAuthenticated ?? true)
+            {
+                <div class="alert alert-secondary">
+                    <a asp-controller="Account" asp-action="Login">Autentifica-te</a> pentru a adresa o intrebare.
+                </div>
+            }
+
+            @if (questions.Count == 0)
+            {
+                <div class="alert alert-info mb-0">Nu exista intrebari pentru aceasta licitatie.</div>
+            }
+            else
+            {
+                <div class="auction-questions-list">
+                    @foreach (var question in questions)
+                    {
+                        <article class="auction-question">
+                            <div class="auction-question__header">
+                                <strong>@question.BuyerName</strong>
+                                <span>@DateTimeDisplay.ToLocal(question.CreatedAt).ToString("dd.MM.yyyy HH:mm")</span>
+                            </div>
+                            <p>@question.Question</p>
+
+                            @if (!string.IsNullOrWhiteSpace(question.Answer))
+                            {
+                                <div class="auction-question__answer">
+                                    <span>Raspuns vanzator</span>
+                                    <p>@question.Answer</p>
+                                    @if (question.AnsweredAt is not null)
+                                    {
+                                        <small>@DateTimeDisplay.ToLocal(question.AnsweredAt.Value).ToString("dd.MM.yyyy HH:mm")</small>
+                                    }
+                                </div>
+                            }
+                            else if (isOwnAuction)
+                            {
+                                <form asp-action="AnswerQuestion" asp-route-id="@Model.Id" method="post" class="auction-question__answer-form">
+                                    <input type="hidden" name="QuestionId" value="@question.Id" />
+                                    <textarea name="Answer" class="form-control mb-2" rows="2" maxlength="1000" placeholder="Scrie raspunsul pentru cumparator"></textarea>
+                                    <button class="btn btn-outline-primary btn-sm" type="submit">Raspunde</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <div class="text-muted small">Vanzatorul nu a raspuns inca.</div>
+                            }
+                        </article>
+                    }
+                </div>
+            }
+        </section>
     </div>
 
     <div class="col-lg-4">
@@ -273,6 +339,19 @@ else if (Model.Status == AuctionStatus.Unsold)
                     </div>
                 </div>
             </a>
+        }
+
+        @if ((User.IsInRole("Cumparator") || User.IsInRole("Vanzator")) && !isOwnAuction)
+        {
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h2 class="h6">Raporteaza licitatia</h2>
+                    <form asp-action="Report" asp-route-id="@Model.Id" method="post">
+                        <textarea name="reason" class="form-control mb-2" rows="3" maxlength="1000" placeholder="Motivul raportarii"></textarea>
+                        <button class="btn btn-danger w-100" type="submit">Trimite raportarea</button>
+                    </form>
+                </div>
+            </div>
         }
 
         @if (Model.Status == AuctionStatus.Ended && ViewBag.WinnerFullName is string winnerFullName)

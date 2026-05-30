@@ -9,6 +9,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Auction> Auctions => Set<Auction>();
+    public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
+    public DbSet<AuctionQuestion> AuctionQuestions => Set<AuctionQuestion>();
     public DbSet<AutoBid> AutoBids => Set<AutoBid>();
     public DbSet<AuctionImage> AuctionImages => Set<AuctionImage>();
     public DbSet<Bid> Bids => Set<Bid>();
@@ -20,6 +22,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<Domain.Entities.Transaction> Transactions => Set<Domain.Entities.Transaction>();
+    public DbSet<TransactionMessage> TransactionMessages => Set<TransactionMessage>();
+    public DbSet<UserReport> UserReports => Set<UserReport>();
     public DbSet<VehicleConditionReport> VehicleConditionReports => Set<VehicleConditionReport>();
     public DbSet<VehicleDamage> VehicleDamages => Set<VehicleDamage>();
 
@@ -68,6 +72,17 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<AuctionQuestion>(entity =>
+        {
+            entity.Property(x => x.Question).HasMaxLength(1000);
+            entity.Property(x => x.Answer).HasMaxLength(1000);
+            entity.HasOne(x => x.Auction)
+                .WithMany()
+                .HasForeignKey(x => x.AuctionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.AuctionId, x.CreatedAt });
+        });
+
         builder.Entity<Brand>()
             .HasIndex(x => x.Name)
             .IsUnique();
@@ -85,10 +100,24 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasColumnType("decimal(18,2)");
 
         builder.Entity<Domain.Entities.Transaction>()
+            .Property(x => x.PaymentProofPath)
+            .HasMaxLength(260);
+
+        builder.Entity<Domain.Entities.Transaction>()
             .HasOne(x => x.Auction)
             .WithMany()
             .HasForeignKey(x => x.AuctionId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<TransactionMessage>(entity =>
+        {
+            entity.Property(x => x.Message).HasMaxLength(1200);
+            entity.HasOne(x => x.Transaction)
+                .WithMany()
+                .HasForeignKey(x => x.TransactionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.TransactionId, x.CreatedAt });
+        });
 
         builder.Entity<Review>(entity =>
         {
@@ -100,8 +129,42 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasIndex(x => new { x.SellerId, x.BuyerId }).IsUnique();
         });
 
+        builder.Entity<UserReport>(entity =>
+        {
+            entity.Property(x => x.Reason).HasMaxLength(1000);
+            entity.HasOne(x => x.Auction)
+                .WithMany()
+                .HasForeignKey(x => x.AuctionId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Review)
+                .WithMany()
+                .HasForeignKey(x => x.ReviewId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(x => new { x.TargetType, x.Status });
+        });
+
         builder.Entity<ApplicationUser>()
             .Property(x => x.RatingAverage)
             .HasColumnType("decimal(5,2)");
+
+        builder.Entity<ApplicationUser>()
+            .Property(x => x.CompanyAddress)
+            .HasMaxLength(300);
+
+        builder.Entity<DealerProfile>(entity =>
+        {
+            entity.Property(x => x.CompanyName).HasMaxLength(160);
+            entity.Property(x => x.FiscalCode).HasMaxLength(50);
+            entity.Property(x => x.RejectionReason).HasMaxLength(1000);
+        });
+
+        builder.Entity<AdminAuditLog>(entity =>
+        {
+            entity.Property(x => x.Action).HasMaxLength(120);
+            entity.Property(x => x.TargetType).HasMaxLength(80);
+            entity.Property(x => x.TargetId).HasMaxLength(120);
+            entity.Property(x => x.Details).HasMaxLength(1200);
+            entity.HasIndex(x => x.CreatedAt);
+        });
     }
 }

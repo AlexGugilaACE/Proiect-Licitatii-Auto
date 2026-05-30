@@ -1,0 +1,103 @@
+@model AutoAuction.Web.Models.AdminReportsViewModel
+@using AutoAuction.Domain.Enums
+
+@{
+    ViewData["Title"] = "Raportari";
+}
+
+<div class="admin-list-header">
+    <div>
+        <h1>Raportari</h1>
+        <p>@Model.TotalCount raportari gasite</p>
+    </div>
+</div>
+
+<form method="get" class="admin-search-panel">
+    <div>
+        <label for="status" class="form-label">Status</label>
+        <select id="status" name="status" asp-items="Model.StatusItems" class="form-select"></select>
+    </div>
+    <div class="admin-search-panel__actions">
+        <button class="btn btn-primary" type="submit">Filtreaza</button>
+        <a class="btn btn-outline-secondary" asp-action="Reports">Reseteaza</a>
+    </div>
+</form>
+
+@if (Model.Reports.Count == 0)
+{
+    <div class="alert alert-info">Nu exista raportari pentru criteriile selectate.</div>
+}
+else
+{
+    <div class="favorite-list">
+        @foreach (var report in Model.Reports)
+        {
+            <article class="favorite-auction admin-auction">
+                <div class="favorite-auction__content">
+                    <div class="favorite-auction__main">
+                        <div>
+                            <div class="admin-auction__heading">
+                                <h2 class="favorite-auction__title">
+                                    @(report.TargetType == ReportTargetType.Auction ? "Raportare licitatie" : "Raportare review")
+                                </h2>
+                                <span class="badge text-bg-secondary">@report.Status</span>
+                            </div>
+                            <div class="favorite-auction__meta">
+                                Raportat de @report.ReporterName pe @report.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                            </div>
+                            <div class="favorite-auction__meta">
+                                Reclamat: @report.ReportedUserName
+                                @if (!string.IsNullOrWhiteSpace(report.ReportedUserEmail))
+                                {
+                                    <span> · @report.ReportedUserEmail</span>
+                                }
+                            </div>
+                        </div>
+
+                        <p class="mb-2">@report.Reason</p>
+
+                        @if (report.TargetType == ReportTargetType.Auction)
+                        {
+                            <div class="text-muted">Licitatia: @(report.AuctionTitle ?? "stearsa")</div>
+                        }
+                        else
+                        {
+                            <div class="text-muted">Review: @(string.IsNullOrWhiteSpace(report.ReviewComment) ? "sters" : report.ReviewComment)</div>
+                        }
+                    </div>
+
+                    <div class="favorite-auction__side">
+                        <div class="favorite-auction__actions">
+                            <a class="btn btn-outline-secondary btn-sm" asp-action="ReportDetails" asp-route-id="@report.Id">Detalii</a>
+                            @if (report.AuctionId is not null)
+                            {
+                                <a class="btn btn-outline-primary btn-sm" asp-controller="Auctions" asp-action="Details" asp-route-id="@report.AuctionId">Vezi licitatia</a>
+                            }
+                            @if (report.Status == ReportStatus.Pending)
+                            {
+                                <form asp-action="UpdateReportStatus" asp-route-id="@report.Id" method="post">
+                                    <input type="hidden" name="status" value="@ReportStatus.Resolved" />
+                                    <button class="btn btn-success btn-sm" type="submit">Rezolva</button>
+                                </form>
+                                <form asp-action="UpdateReportStatus" asp-route-id="@report.Id" method="post">
+                                    <input type="hidden" name="status" value="@ReportStatus.Rejected" />
+                                    <button class="btn btn-outline-secondary btn-sm" type="submit">Respinge</button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </article>
+        }
+    </div>
+
+    <nav class="admin-pagination" aria-label="Paginare raportari">
+        @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
+        {
+            <a class="@(pageNumber == Model.Page ? "is-active" : string.Empty)"
+               asp-action="Reports"
+               asp-route-status="@Model.Status"
+               asp-route-page="@pageNumber">@pageNumber</a>
+        }
+    </nav>
+}

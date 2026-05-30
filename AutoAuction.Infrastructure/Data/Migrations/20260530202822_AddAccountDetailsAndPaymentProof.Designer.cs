@@ -4,6 +4,7 @@ using AutoAuction.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AutoAuction.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260530202822_AddAccountDetailsAndPaymentProof")]
+    partial class AddAccountDetailsAndPaymentProof
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,48 +24,6 @@ namespace AutoAuction.Infrastructure.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("AutoAuction.Domain.Entities.AdminAuditLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<string>("AdminId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Details")
-                        .IsRequired()
-                        .HasMaxLength(1200)
-                        .HasColumnType("nvarchar(1200)");
-
-                    b.Property<string>("TargetId")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<string>("TargetType")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.ToTable("AdminAuditLogs");
-                });
 
             modelBuilder.Entity("AutoAuction.Domain.Entities.Auction", b =>
                 {
@@ -210,44 +171,6 @@ namespace AutoAuction.Infrastructure.Data.Migrations
                     b.HasIndex("AuctionId");
 
                     b.ToTable("AuctionImages");
-                });
-
-            modelBuilder.Entity("AutoAuction.Domain.Entities.AuctionQuestion", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Answer")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime?>("AnsweredAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("AuctionId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("BuyerId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Question")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AuctionId", "CreatedAt");
-
-                    b.ToTable("AuctionQuestions");
                 });
 
             modelBuilder.Entity("AutoAuction.Domain.Entities.AutoBid", b =>
@@ -406,16 +329,8 @@ namespace AutoAuction.Infrastructure.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<bool>("IsRejected")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsVerified")
                         .HasColumnType("bit");
-
-                    b.Property<string>("RejectionReason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -557,9 +472,6 @@ namespace AutoAuction.Infrastructure.Data.Migrations
                         .HasMaxLength(260)
                         .HasColumnType("nvarchar(260)");
 
-                    b.Property<int>("PaymentProofStatus")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("PaymentProofUploadedAt")
                         .HasColumnType("datetime2");
 
@@ -578,82 +490,6 @@ namespace AutoAuction.Infrastructure.Data.Migrations
                     b.HasIndex("AuctionId");
 
                     b.ToTable("Transactions");
-                });
-
-            modelBuilder.Entity("AutoAuction.Domain.Entities.TransactionMessage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(1200)
-                        .HasColumnType("nvarchar(1200)");
-
-                    b.Property<string>("SenderId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("TransactionId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TransactionId", "CreatedAt");
-
-                    b.ToTable("TransactionMessages");
-                });
-
-            modelBuilder.Entity("AutoAuction.Domain.Entities.UserReport", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("AuctionId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("ReporterId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("ReviewId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TargetType")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AuctionId");
-
-                    b.HasIndex("ReviewId");
-
-                    b.HasIndex("TargetType", "Status");
-
-                    b.ToTable("UserReports");
                 });
 
             modelBuilder.Entity("AutoAuction.Domain.Entities.VehicleConditionReport", b =>
@@ -1047,17 +883,6 @@ namespace AutoAuction.Infrastructure.Data.Migrations
                     b.Navigation("Auction");
                 });
 
-            modelBuilder.Entity("AutoAuction.Domain.Entities.AuctionQuestion", b =>
-                {
-                    b.HasOne("AutoAuction.Domain.Entities.Auction", "Auction")
-                        .WithMany()
-                        .HasForeignKey("AuctionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Auction");
-                });
-
             modelBuilder.Entity("AutoAuction.Domain.Entities.AutoBid", b =>
                 {
                     b.HasOne("AutoAuction.Domain.Entities.Auction", "Auction")
@@ -1121,34 +946,6 @@ namespace AutoAuction.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Auction");
-                });
-
-            modelBuilder.Entity("AutoAuction.Domain.Entities.TransactionMessage", b =>
-                {
-                    b.HasOne("AutoAuction.Domain.Entities.Transaction", "Transaction")
-                        .WithMany()
-                        .HasForeignKey("TransactionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Transaction");
-                });
-
-            modelBuilder.Entity("AutoAuction.Domain.Entities.UserReport", b =>
-                {
-                    b.HasOne("AutoAuction.Domain.Entities.Auction", "Auction")
-                        .WithMany()
-                        .HasForeignKey("AuctionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("AutoAuction.Domain.Entities.Review", "Review")
-                        .WithMany()
-                        .HasForeignKey("ReviewId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Auction");
-
-                    b.Navigation("Review");
                 });
 
             modelBuilder.Entity("AutoAuction.Domain.Entities.VehicleConditionReport", b =>

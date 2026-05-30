@@ -7,5 +7,7 @@ public class DealerProfile
     public string CompanyName { get; set; } = string.Empty;
     public string FiscalCode { get; set; } = string.Empty;
     public bool IsVerified { get; set; }
+    public bool IsRejected { get; set; }
+    public string RejectionReason { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

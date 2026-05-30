@@ -1,4 +1,5 @@
 using AutoAuction.Domain.Entities;
+using AutoAuction.Domain.Enums;
 using AutoAuction.Infrastructure.Data;
 using AutoAuction.Infrastructure.Identity;
 using AutoAuction.Web.Models;
@@ -48,6 +49,8 @@ public class ReviewsController(
 
                 return new ReviewListItemViewModel
                 {
+                    Id = review.Id,
+                    SellerId = review.SellerId,
                     Rating = review.Rating,
                     Comment = review.Comment,
                     BuyerName = string.IsNullOrWhiteSpace(buyerName) ? buyer?.Email ?? "Utilizator" : buyerName,
@@ -110,6 +113,75 @@ public class ReviewsController(
 
         TempData["Success"] = existingReview is null ? "Review-ul a fost adaugat." : "Review-ul tau a fost actualizat.";
         return RedirectToAction(nameof(Seller), new { id = model.SellerId });
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Administrator)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var review = await db.Reviews.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (review is null)
+        {
+            return NotFound();
+        }
+
+        var sellerId = review.SellerId;
+        db.AdminAuditLogs.Add(new AdminAuditLog
+        {
+            AdminId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty,
+            Action = "Stergere review",
+            TargetType = "Review",
+            TargetId = id.ToString(),
+            Details = review.Comment
+        });
+        db.Reviews.Remove(review);
+        await db.SaveChangesAsync(cancellationToken);
+        await RefreshSellerRatingAsync(sellerId, cancellationToken);
+
+        TempData["Success"] = "Review-ul a fost sters.";
+        return RedirectToAction(nameof(Seller), new { id = sellerId });
+    }
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Report(int id, string reason, CancellationToken cancellationToken)
+    {
+        var review = await db.Reviews.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (review is null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            TempData["Error"] = "Completeaza motivul raportarii.";
+            return RedirectToAction(nameof(Seller), new { id = review.SellerId });
+        }
+
+        var reporterId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var alreadyReported = await db.UserReports.AnyAsync(x =>
+            x.ReporterId == reporterId &&
+            x.TargetType == ReportTargetType.Review &&
+            x.ReviewId == id &&
+            x.Status == ReportStatus.Pending,
+            cancellationToken);
+
+        if (!alreadyReported)
+        {
+            db.UserReports.Add(new UserReport
+            {
+                ReporterId = reporterId,
+                TargetType = ReportTargetType.Review,
+                ReviewId = id,
+                Reason = reason.Trim()
+            });
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        TempData["Success"] = "Review-ul a fost raportat catre administrator.";
+        return RedirectToAction(nameof(Seller), new { id = review.SellerId });
     }
 
     private async Task<SellerReviewSummaryViewModel> BuildSellerSummaryAsync(ApplicationUser seller, CancellationToken cancellationToken)

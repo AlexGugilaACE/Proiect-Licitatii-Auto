@@ -11,6 +11,8 @@ public class AccountProfileViewModel
     public DateTime CreatedAt { get; set; }
     public decimal RatingAverage { get; set; }
     public int RatingCount { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public string FiscalCode { get; set; } = string.Empty;
     public ProfileDetailsViewModel Profile { get; set; } = new();
     public ChangePasswordViewModel ChangePassword { get; set; } = new();
 }
@@ -24,6 +26,23 @@ public class ProfileDetailsViewModel
     [Required]
     [Display(Name = "Nume")]
     public string LastName { get; set; } = string.Empty;
+
+    [Required]
+    [Phone]
+    [Display(Name = "Telefon")]
+    public string PhoneNumber { get; set; } = string.Empty;
+
+    [Required]
+    [Display(Name = "Denumire firma")]
+    public string CompanyName { get; set; } = string.Empty;
+
+    [Required]
+    [Display(Name = "CUI firma")]
+    public string FiscalCode { get; set; } = string.Empty;
+
+    [Required]
+    [Display(Name = "Adresa firma")]
+    public string CompanyAddress { get; set; } = string.Empty;
 }
 
 public class ChangePasswordViewModel
